@@ -16,15 +16,15 @@ extern LIBRARY_API BlockArray staticBlockArray;
 
 #define STATIC_BLOCK_ARRAY_SIZE 1024
 
-int LIBRARY_API BlockArray_create(BlockArray **blockArray, size_t blocksNumber);
+LIBRARY_API int BlockArray_create(BlockArray **blockArray, size_t blocksNumber);
 
-void LIBRARY_API BlockArray_destroy(BlockArray *blockArray);
+LIBRARY_API void BlockArray_destroy(BlockArray *blockArray);
 
-int LIBRARY_API BlockArray_addBlock(BlockArray *blockArray, int index, const char *source,
+LIBRARY_API int BlockArray_addBlock(BlockArray *blockArray, int index, const char *source,
                         size_t sourceSize);
 
-int LIBRARY_API BlockArray_removeBlock(BlockArray *blockArray, int index);
+LIBRARY_API int BlockArray_removeBlock(BlockArray *blockArray, int index);
 
-const char * LIBRARY_API BlockArray_findBlock(BlockArray *blockArray, int asciiSumSearched);
+LIBRARY_API const char * BlockArray_findBlock(BlockArray *blockArray, int asciiSumSearched);
 
 #endif /* BLOCK_ARRAY_H_ */

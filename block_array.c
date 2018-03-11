@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 char *staticBlockArrayBlocks[STATIC_BLOCK_ARRAY_SIZE] = {0};
 size_t staticBlockArrayBlocksSize[STATIC_BLOCK_ARRAY_SIZE] = {0};
@@ -11,7 +12,7 @@ BlockArray staticBlockArray = {STATIC_BLOCK_ARRAY_SIZE, staticBlockArrayBlocks,
                                staticBlockArrayBlocksSize};
 
 int BlockArray_create(BlockArray **blockArray, size_t blocksNumber) {
-  if (*blockArray != STATIC_BLOCK_ARRAY) {
+  if (*blockArray == STATIC_BLOCK_ARRAY) {
     return -1;
   }
 
@@ -27,6 +28,8 @@ int BlockArray_create(BlockArray **blockArray, size_t blocksNumber) {
   result->blocksSizes = (size_t *)calloc(blocksNumber, sizeof(size_t));
 
   *blockArray = result;
+
+  return 0;
 }
 
 void BlockArray_destroy(BlockArray *blockArray) {
@@ -44,11 +47,7 @@ void BlockArray_destroy(BlockArray *blockArray) {
     }
   }
 
-  if (blockArray->blocksSizes != NULL) {
-    for (int i = 0; i < blockArray->size; ++i) {
-      free(blockArray->blocksSizes[i]);
-    }
-  }
+  free(blockArray->blocksSizes);
 
   free(blockArray);
 }
@@ -68,7 +67,7 @@ int BlockArray_addBlock(BlockArray *blockArray, int index, const char *source,
   }
 
   blockArray->blocksSizes[index] = sourceSize; // ?
-  blockArray->blocks[index] = (char)calloc(sourceSize, sizeof(char));
+  blockArray->blocks[index] = (char*)calloc(sourceSize, sizeof(char));
 
   memcpy(blockArray->blocks[index], source, sourceSize);
 
