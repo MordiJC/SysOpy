@@ -163,32 +163,32 @@ int main(int argc, char **argv) {
     summaryExecutionTime += timeDiffInSeconds(realTimeClocks[i-1], realTimeClocks[i]);
   }
 
-  printf("%-14s\t%-10s\t%-10s\t%-10s\n", "", "User", "System", "Real");
-  printf("%-14s\t%-9lfs\t%-9lfs\t%-9lfs\n",
+  printf("%-14s\t%-11s\t%-11s\t%-11s\n", "", "User", "System", "Real");
+  printf("%-14s\t%-10.8fs\t%-10.8fs\t%-10.8fs\n",
         "Init & fill",
         timeDiffInSeconds(tmsTimes[0]->tms_stime, tmsTimes[1]->tms_stime),
         timeDiffInSeconds(tmsTimes[0]->tms_utime, tmsTimes[1]->tms_utime),
         timeDiffInSeconds(realTimeClocks[0], realTimeClocks[1]));
 
-  printf("%-14s\t%-9lfs\t%-9lfs\t%-9lfs\n",
+  printf("%-14s\t%-10.8fs\t%-10.8fs\t%-10.8fs\n",
         "Find",
         timeDiffInSeconds(tmsTimes[1]->tms_stime, tmsTimes[2]->tms_stime),
         timeDiffInSeconds(tmsTimes[1]->tms_utime, tmsTimes[2]->tms_utime),
         timeDiffInSeconds(realTimeClocks[1], realTimeClocks[2]));
   
-  printf("%-14s\t%-9lfs\t%-9lfs\t%-9lfs\n",
+  printf("%-14s\t%-10.8fs\t%-10.8fs\t%-10.8fs\n",
         "Replace 1/2",
         timeDiffInSeconds(tmsTimes[2]->tms_stime, tmsTimes[3]->tms_stime),
         timeDiffInSeconds(tmsTimes[2]->tms_utime, tmsTimes[3]->tms_utime),
         timeDiffInSeconds(realTimeClocks[2], realTimeClocks[3]));
   
-  printf("%-14s\t%-9lfs\t%-9lfs\t%-9lfs\n",
+  printf("%-14s\t%-10.8fs\t%-10.8fs\t%-10.8fs\n",
         "Remove",
         timeDiffInSeconds(tmsTimes[3]->tms_stime, tmsTimes[4]->tms_stime),
         timeDiffInSeconds(tmsTimes[3]->tms_utime, tmsTimes[4]->tms_utime),
         timeDiffInSeconds(realTimeClocks[3], realTimeClocks[4]));
 
-  printf("Summary time: %9lf\n", summaryExecutionTime);
+  printf("Summary time:   %10.8fs\n", summaryExecutionTime);
 
   return 0;
 }
