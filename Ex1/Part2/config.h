@@ -1,7 +1,7 @@
-#ifndef CONFIG_H_
+#ifndef CONFIG_H_!defined(COMPILE_STATIC)
 #define CONFIG_H_
 
-#if !defined(COMPILE_STATIC)
+#if defined(COMPILE_DYNAMIC)
 
     #if __GNUC__ >= 4
 

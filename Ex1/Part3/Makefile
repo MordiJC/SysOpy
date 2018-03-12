@@ -26,14 +26,24 @@ clean:
 	$(RM) $(STATIC_LIB) $(DYNAMIC_LIB) ./*.o $(MAIN_EXEC)
 
 $(STATIC_LIB): $(LIB_O)
+	$(CC) $(CFLAGS) block_array.c -o block_array.o
 	$(AR) $@ $?
 	$(RANLIB) $@
 
 $(DYNAMIC_LIB): $(LIB_O)
-	$(CC) $? -shared -o $@
+	$(CC) $(CFLAGS) block_array.c -o block_array.o -DCOMPILE_DYNAMIC
+	$(CC) $? -shared -o $@ -D
 
-$(MAIN_EXEC): $(LIB_STATIC) $(MAIN_O)
+$(MAIN_EXEC): $(STATIC_LIB) $(MAIN_O)
 	$(CC) $? -o $@ -L . -l :$(STATIC_LIB)
+
+$(MAIN_EXEC)_static: $(MAIN_EXEC)
+
+$(MAIN_EXEC)_dynamic: $(DYNAMIC_LIB) $(MAIN_O)
+	$(CC) $? -o $@ -L . -l :$(DYNAMIC_LIB)
+
+$(MAIN_EXEC)_runtime: $(DYNAMIC_LIB) $(MAIN_O)
+$(CC) $? -o $@ -DLOAD_LIBRARY_AT_RUNTIME
 
 depend:
 	@$(CC) $(CFLAGS) -MM *.c
