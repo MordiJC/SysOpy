@@ -1,0 +1,3 @@
+# Operating Systems
+This repository contains exercises made for Operating Systems classes. 
+Shitty exercises -> Shitty code. Don't judge...
