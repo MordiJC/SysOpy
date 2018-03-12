@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
     currentBA = STATIC_BLOCK_ARRAY;
   }
 
-  for (size_t i = 0; i < elementsNumber; ++i) {
+  for (int i = 0; i < elementsNumber; ++i) {
     char *str = randomString(elementSize);
     BlockArray_addBlock(currentBA, i, str, strlen(str));
   }
@@ -138,12 +138,14 @@ int main(int argc, char **argv) {
   // Time after initialization
   realTimeClocks[1] = times(tmsTimes[1]);
 
-  BlockArray_findBlock(currentBA, (rand() % elementSize) * (int)('A'));
+  for(int i = 0; i < elementsNumber; i ++) {
+    BlockArray_findBlock(currentBA, asciiSum);
+  }
 
   // Time after finding block
   realTimeClocks[2] = times(tmsTimes[2]);
 
-  for (size_t i = 0; i < elementsNumber; ++i) {
+  for (int i = 0; i < elementsNumber; ++i) {
     char *str = randomString(elementSize);
     BlockArray_addBlock(currentBA, i, str, strlen(str));
   }
@@ -151,7 +153,7 @@ int main(int argc, char **argv) {
   // Time after replacing half of blocks
   realTimeClocks[3] = times(tmsTimes[3]);
 
-  for (size_t i = 0; i < elementsNumber / 2; ++i) {
+  for (int i = 0; i < elementsNumber / 2; ++i) {
     BlockArray_removeBlock(currentBA, i);
   }
 
@@ -166,27 +168,27 @@ int main(int argc, char **argv) {
   printf("%-14s\t%-11s\t%-11s\t%-11s\n", "", "User", "System", "Real");
   printf("%-14s\t%-10.8fs\t%-10.8fs\t%-10.8fs\n",
         "Init & fill",
-        timeDiffInSeconds(tmsTimes[0]->tms_stime, tmsTimes[1]->tms_stime),
-        timeDiffInSeconds(tmsTimes[0]->tms_utime, tmsTimes[1]->tms_utime),
-        timeDiffInSeconds(realTimeClocks[0], realTimeClocks[1]));
+        timeDiffInSeconds(tmsTimes[0]->tms_stime, tmsTimes[1]->tms_stime)/elementsNumber,
+        timeDiffInSeconds(tmsTimes[0]->tms_utime, tmsTimes[1]->tms_utime)/elementsNumber,
+        timeDiffInSeconds(realTimeClocks[0], realTimeClocks[1])/elementsNumber);
 
   printf("%-14s\t%-10.8fs\t%-10.8fs\t%-10.8fs\n",
         "Find",
-        timeDiffInSeconds(tmsTimes[1]->tms_stime, tmsTimes[2]->tms_stime),
-        timeDiffInSeconds(tmsTimes[1]->tms_utime, tmsTimes[2]->tms_utime),
-        timeDiffInSeconds(realTimeClocks[1], realTimeClocks[2]));
+        timeDiffInSeconds(tmsTimes[1]->tms_stime, tmsTimes[2]->tms_stime)/elementsNumber,
+        timeDiffInSeconds(tmsTimes[1]->tms_utime, tmsTimes[2]->tms_utime)/elementsNumber,
+        timeDiffInSeconds(realTimeClocks[1], realTimeClocks[2])/elementsNumber);
   
   printf("%-14s\t%-10.8fs\t%-10.8fs\t%-10.8fs\n",
         "Replace 1/2",
-        timeDiffInSeconds(tmsTimes[2]->tms_stime, tmsTimes[3]->tms_stime),
-        timeDiffInSeconds(tmsTimes[2]->tms_utime, tmsTimes[3]->tms_utime),
-        timeDiffInSeconds(realTimeClocks[2], realTimeClocks[3]));
+        timeDiffInSeconds(tmsTimes[2]->tms_stime, tmsTimes[3]->tms_stime)/elementsNumber/2.0,
+        timeDiffInSeconds(tmsTimes[2]->tms_utime, tmsTimes[3]->tms_utime)/elementsNumber/2.0,
+        timeDiffInSeconds(realTimeClocks[2], realTimeClocks[3])/elementsNumber/2.0);
   
   printf("%-14s\t%-10.8fs\t%-10.8fs\t%-10.8fs\n",
-        "Remove",
-        timeDiffInSeconds(tmsTimes[3]->tms_stime, tmsTimes[4]->tms_stime),
-        timeDiffInSeconds(tmsTimes[3]->tms_utime, tmsTimes[4]->tms_utime),
-        timeDiffInSeconds(realTimeClocks[3], realTimeClocks[4]));
+        "Remove 1/2",
+        timeDiffInSeconds(tmsTimes[3]->tms_stime, tmsTimes[4]->tms_stime)/elementsNumber/2.0,
+        timeDiffInSeconds(tmsTimes[3]->tms_utime, tmsTimes[4]->tms_utime)/elementsNumber/2.0,
+        timeDiffInSeconds(realTimeClocks[3], realTimeClocks[4])/elementsNumber/2.0);
 
   printf("Summary time:   %10.8fs\n", summaryExecutionTime);
 
