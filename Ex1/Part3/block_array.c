@@ -93,16 +93,16 @@ int BlockArray_removeBlock(BlockArray *blockArray, size_t index) {
   return 0;
 }
 
-int asciiSum(const char *str, size_t size) {
-  int sum = 0;
+size_t asciiSum(const char *str, size_t size) {
+  size_t sum = 0;
   for (size_t i = 0; i < size; ++i) {
-    sum += str[i];
+    sum += (size_t)((unsigned char)str[i]);
   }
 
   return sum;
 }
 
-const char *BlockArray_findBlock(BlockArray *blockArray, int asciiSumSearched) {
+const char *BlockArray_findBlock(BlockArray *blockArray, size_t asciiSumSearched) {
   if (blockArray == NULL) {
     return NULL;
   }

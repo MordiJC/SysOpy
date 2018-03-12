@@ -9,12 +9,9 @@ CFLAGS= --std=c11 -Wall -Wextra -fPIC -pedantic -Wall \
     -fno-omit-frame-pointer -ffloat-store -fno-common -fstrict-aliasing
 RM= rm -r 
 AR= ar rcu 
-RANLIB= ranlib
 
-LIBS= -lm 
-
-STATIC_LIB= libblockarray.a
-DYNAMIC_LIB= libblockarray.so
+STATIC_LIB=libblockarray.a
+DYNAMIC_LIB=libblockarray.so
 
 LIB_O= block_array.o
 
@@ -25,7 +22,6 @@ clean:
 
 $(STATIC_LIB): $(LIB_O)
 	$(AR) $@ $?
-	$(RANLIB) $@
 
 $(DYNAMIC_LIB): $(LIB_O)
 	gcc $? -shared -o $@
@@ -33,4 +29,4 @@ $(DYNAMIC_LIB): $(LIB_O)
 depend:
 	@$(CC) $(CFLAGS) -MM *.c
 
-block_array.o: block_array.c block_array.h config.h
+block_array.o: block_array.c block_array.h
