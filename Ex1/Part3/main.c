@@ -116,6 +116,8 @@ int main(int argc, char **argv) {
     tmsTimes[i] = (struct tms *)malloc(sizeof(struct tms *));
   }
 
+  BlockArray_init();
+
   // Initial time
   realTimeClocks[0] = times(tmsTimes[0]);
 

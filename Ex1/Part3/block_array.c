@@ -1,9 +1,75 @@
 #include "block_array.h"
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+#if defined(LOAD_LIBRARY_AT_RUNTIME)
+
+#include <dlfcn.h>
+
+void * dynLibHandle = NULL:
+
+void BlockArray_exit() {
+  if(dynLibHandle != NULL) {
+    dlclose(dynLibHandle);
+  }
+}
+
+void BlockArray_error(const char * err) {
+  if(err) {
+    fprintf(stderr, "Unable to load symbol from library:\n%s", err);
+    dlclose(dynLibHandle);
+    exit(1);
+  }
+}
+
+void BlockArray_init() {
+  if(dynLibHandle != NULL) {
+    return;
+  }
+
+  dynLibHandle = dlopen("./libblockarray.so", RTLD_LAZY);
+
+  if(dynLibHandle == NULL) {
+    fprintf(stderr, "Unable to load libblockarray.so:\n%s\n", dlerror());
+    exit(1);
+  }
+
+  dlerror(); // reset errors
+
+  const char * dlsym_error;
+
+  staticBlockArray = (BlockArray*) dlsym(dynLibHandle, "staticBlockArray");
+
+  BlockArray_create = (BlockArray_create_t) dlsym(dynLibHandle, "BlockArray_create");
+
+  BlockArray_error(dlerror());
+
+  BlockArray_destroy = (BlockArray_destroy_t) dlsym(dynLibHandle, "BlockArray_destroy");
+
+  BlockArray_error(dlerror());
+
+  BlockArray_addBlock = (BlockArray_addBlock_t) dlsym(dynLibHandle, "BlockArray_addBlock");
+
+  BlockArray_error(dlerror());
+
+  BlockArray_removeBlock = (BlockArray_removeBlock_t) dlsym(dynLibHandle, "BlockArray_removeBlock");
+
+  BlockArray_error(dlerror());
+  
+  BlockArray_findBlock = (BlockArray_findBlock_t) dlsym(dynLibHandle, "BlockArray_findBlock");
+
+  BlockArray_error(dlerror());
+
+  atexit(BlockArray_exit);
+}
+
+#else
+
+#include <math.h>
+#include <string.h>
+
+void BlockArray_init(void) {}
 
 char *staticBlockArrayBlocks[STATIC_BLOCK_ARRAY_SIZE] = {0};
 size_t staticBlockArrayBlocksSize[STATIC_BLOCK_ARRAY_SIZE] = {0};
@@ -130,3 +196,5 @@ const char *BlockArray_findBlock(BlockArray *blockArray, size_t asciiSumSearched
 
   return bestBlock;
 }
+
+#endif

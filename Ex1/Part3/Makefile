@@ -34,11 +34,11 @@ $(MAIN_EXEC): $(MAIN_O) $(STATIC_LIB)
 
 $(MAIN_EXEC)_static: $(MAIN_EXEC)
 
-$(MAIN_EXEC)_dynamic: $(DYNAMIC_LIB)
+$(MAIN_EXEC)_dynamic: $(DYNAMIC_LIB) $(MAIN_O)
 	$(CC) $(MAIN_O) $(DYNAMIC_LIB) -o $@
 
-$(MAIN_EXEC)_runtime: $(DYNAMIC_LIB)
-	$(CC) $(MAIN_O) -o $@ -DLOAD_LIBRARY_AT_RUNTIME
+$(MAIN_EXEC)_runtime: $(DYNAMIC_LIB) $(MAIN_O)
+	$(CC) $(MAIN_O) $(LIB_O) -o $@ -DLOAD_LIBRARY_AT_RUNTIME
 
 depend:
 	@$(CC) $(CFLAGS) -MM *.c
