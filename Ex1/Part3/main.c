@@ -109,19 +109,17 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  clock_t * realTimeClocks = (clock_t*)malloc(5 * sizeof(clock_t));
-  struct tms **tmsTimes = (struct tms**)malloc(5 * sizeof(struct tms *));
-
-  for (int i = 0; i < 5; ++i) {
-    tmsTimes[i] = (struct tms *)malloc(sizeof(struct tms *));
-  }
+  clock_t realTimeClock;
+  struct tms tmsTimes;
 
   BlockArray_init();
 
+  BlockArray *currentBA = 0;
+
+  for(int i = 0; i < )
+
   // Initial time
   realTimeClocks[0] = times(tmsTimes[0]);
-
-  BlockArray *currentBA = 0;
 
   if (allocationMethod == DYNAMIC) {
     if(BlockArray_create(&currentBA, elementsNumber) == -1) {
