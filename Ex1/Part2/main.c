@@ -1,12 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/times.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 
-#include "block_array.h"
 #include "args.h"
+#include "block_array.h"
 
 static const char *charsList =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_";
@@ -27,20 +28,34 @@ char *randomString(size_t maxSize) {
   return newStr;
 }
 
-double timeDiffInSeconds(clock_t start, clock_t end) {
-  return (double)(end - start) / sysconf(_SC_CLK_TCK);
+#define getTimes(tv, ru)                                                       \
+  gettimeofday(tv, NULL);                                                      \
+  getrusage(RUSAGE_SELF, ru)
+
+double timevalToSec(struct timeval *tv) {
+  return (double)(tv->tv_sec) + ((double)tv->tv_usec / 1000000.0);
 }
 
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
 
-  srand(time(NULL));
-
   enum AllocationMethod allocationMethod = 0;
   Command *commands;
   int commandsNumber;
   char *error = "";
+
+  BlockArray *currentBA = 0;
+  struct timeval tvStart;
+  struct timeval tvEnd;
+  struct rusage ruStart;
+  struct rusage ruEnd;
+
+  double summaryExecutionTime = 0.0;
+
+  FILE *logFile = NULL;
+
+  srand(time(NULL));
 
   if (processArguments(argc, argv, &allocationMethod, &commands,
                        &commandsNumber, &error) == -1) {
@@ -48,15 +63,16 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  BlockArray *currentBA = 0;
-  clock_t rtcStart;
-  clock_t rtcEnd;
-  struct tms tmsTimeStart;
-  struct tms tmsTimeEnd;
+  logFile = fopen("raport2.txt", "w");
 
-  double summaryExecutionTime = 0.0;
+  if (logFile == NULL) {
+    fprintf(stderr, "Unable to open log file: `raport2.txt'\n");
+    return 1;
+  }
 
   printf("%-14s\t%-11s\t%-11s\t%-11s\n", "", "User", "System", "Real");
+  fprintf(logFile, "%-14s\t%-11s\t%-11s\t%-11s\n", "", "User", "System",
+          "Real");
   const char *operation = "";
 
   int lastCreationBlockSize = 0;
@@ -64,9 +80,15 @@ int main(int argc, char **argv) {
   for (int i = 0; i < commandsNumber; ++i) {
     Command currentCommand = commands[i];
 
+    memset(&tvStart, 0, sizeof(struct timeval));
+    memset(&tvEnd, 0, sizeof(struct timeval));
+    memset(&ruStart, 0, sizeof(struct rusage));
+    memset(&ruEnd, 0, sizeof(struct rusage));
+
     switch (currentCommand.type) {
     case CREATE:
-      rtcStart = times(&tmsTimeStart);
+
+      getTimes(&tvStart, &ruStart);
 
       if (allocationMethod == DYNAMIC) {
         if (BlockArray_create(&currentBA, currentCommand.firstArgument) == -1) {
@@ -83,18 +105,18 @@ int main(int argc, char **argv) {
         free(str);
       }
 
-      rtcEnd = times(&tmsTimeEnd);
+      getTimes(&tvEnd, &ruEnd);
 
       lastCreationBlockSize = currentCommand.secondArgument;
 
       operation = "Init & fill";
       break;
     case SEARCH:
-      rtcStart = times(&tmsTimeStart);
+      getTimes(&tvStart, &ruStart);
 
-      BlockArray_findBlock(currentBA, currentCommand.firstArgument);      
+      BlockArray_findBlock(currentBA, currentCommand.firstArgument);
 
-      rtcEnd = times(&tmsTimeEnd);
+      getTimes(&tvEnd, &ruEnd);
 
       operation = "Search";
       break;
@@ -107,7 +129,7 @@ int main(int argc, char **argv) {
         break;
       }
 
-      rtcStart = times(&tmsTimeStart);
+      getTimes(&tvStart, &ruStart);
 
       for (int j = 0; j < currentCommand.firstArgument; j++) {
         char *str = randomString(lastCreationBlockSize);
@@ -115,7 +137,7 @@ int main(int argc, char **argv) {
         free(str);
       }
 
-      rtcEnd = times(&tmsTimeEnd);
+      getTimes(&tvEnd, &ruEnd);
 
       operation = "Add";
       break;
@@ -126,13 +148,13 @@ int main(int argc, char **argv) {
         break;
       }
 
-      rtcStart = times(&tmsTimeStart);
+      getTimes(&tvStart, &ruStart);
 
       for (int j = 0; j < currentCommand.firstArgument; ++j) {
         BlockArray_removeBlock(currentBA, j);
       }
 
-      rtcEnd = times(&tmsTimeEnd);
+      getTimes(&tvEnd, &ruEnd);
 
       operation = "Remove";
 
@@ -142,15 +164,23 @@ int main(int argc, char **argv) {
       break;
     }
 
-    summaryExecutionTime += timeDiffInSeconds(rtcStart, rtcEnd);
+    summaryExecutionTime += timevalToSec(&tvEnd) - timevalToSec(&tvStart);
 
-    printf("%-14s\t%-10.8fs\t%-10.8fs\t%-10.8fs\n", operation,
-           timeDiffInSeconds(tmsTimeStart.tms_stime, tmsTimeEnd.tms_stime),
-           timeDiffInSeconds(tmsTimeStart.tms_utime, tmsTimeEnd.tms_utime),
-           timeDiffInSeconds(rtcStart, rtcEnd));
+    printf("%-14s\t%-8fs\t%-8fs\t%-8fs\n", operation,
+           timevalToSec(&ruEnd.ru_utime) - timevalToSec(&ruStart.ru_utime),
+           timevalToSec(&ruEnd.ru_stime) - timevalToSec(&ruStart.ru_stime),
+           timevalToSec(&tvEnd) - timevalToSec(&tvStart));
+
+    fprintf(logFile, "%-14s\t%-8fs\t%-8fs\t%-8fs\n", operation,
+            timevalToSec(&ruEnd.ru_utime) - timevalToSec(&ruStart.ru_utime),
+            timevalToSec(&ruEnd.ru_stime) - timevalToSec(&ruStart.ru_stime),
+            timevalToSec(&tvEnd) - timevalToSec(&tvStart));
   }
 
   printf("Summary time:   %10.8fs\n", summaryExecutionTime);
+  fprintf(logFile, "Summary time:   %10.8fs\n", summaryExecutionTime);
+
+  fclose(logFile);
 
   return 0;
 }
