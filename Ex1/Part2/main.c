@@ -55,6 +55,10 @@ int main(int argc, char **argv) {
 
   FILE *logFile = NULL;
 
+  const char *operation = "";
+
+  int lastCreationBlockSize = 0;
+
   srand(time(NULL));
 
   if (processArguments(argc, argv, &allocationMethod, &commands,
@@ -73,9 +77,8 @@ int main(int argc, char **argv) {
   printf("%-14s\t%-11s\t%-11s\t%-11s\n", "", "User", "System", "Real");
   fprintf(logFile, "%-14s\t%-11s\t%-11s\t%-11s\n", "", "User", "System",
           "Real");
-  const char *operation = "";
 
-  int lastCreationBlockSize = 0;
+  BlockArray_init();
 
   for (int i = 0; i < commandsNumber; ++i) {
     Command currentCommand = commands[i];
