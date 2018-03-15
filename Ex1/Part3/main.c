@@ -67,10 +67,10 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  logFile = fopen("raport3a.txt", "w");
+  logFile = fopen("log.txt", "a+");
 
   if (logFile == NULL) {
-    fprintf(stderr, "Unable to open log file: `raport3a.txt'\n");
+    fprintf(stderr, "Unable to open log file: `log.txt'\n");
     return 1;
   }
 

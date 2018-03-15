@@ -47,17 +47,23 @@ $(MAIN_EXEC)_runtime: $(DYNAMIC_LIB) $(MAIN_O)
 
 .PHONY: test_static
 test_static: 
+	$(ECHO) "STATIC" >> ./log.txt
 	./$(MAIN_EXEC)_static $(TESTCOMMAND_STATIC)
 
 .PHONY: test_dynamic
 test_dynamic: 
+	$(ECHO) "DYNAMIC" >> ./log.txt
 	./$(MAIN_EXEC)_dynamic $(TESTCOMMAND_DYNAMIC)
 
 .PHONY: test_runtime
 test_runtime: 
+	$(ECHO) "RUNTIME" >> ./log.txt
 	./$(MAIN_EXEC)_runtime $(TESTCOMMAND_DYNAMIC)
 
-test: test_static test_dynamic test_runtime
+clear_report:
+	$(RM) log.txt || true
+
+test: clear_report test_static test_dynamic test_runtime
 
 run:
 	$(RUN)
