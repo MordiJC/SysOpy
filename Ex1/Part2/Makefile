@@ -32,6 +32,9 @@ $(STATIC_LIB): $(LIB_O)
 $(DYNAMIC_LIB): $(LIB_O)
 	$(CC) $? -shared -o $@
 
+test:
+	./$(MAIN_EXEC) dynamic create_table 10000 512 search_element 30000 remove 3000 add 3000
+
 depend:
 	@$(CC) $(CFLAGS) -MM *.c
 
