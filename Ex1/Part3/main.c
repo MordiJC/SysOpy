@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/times.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 
+#include "args.h"
 #include "block_array.h"
 
 static const char *charsList =
@@ -16,181 +18,171 @@ char *randomString(size_t maxSize) {
 
   const size_t charsListLength = strlen(charsList);
 
-  char *const newStr = (char *)malloc(maxSize * sizeof(char));
+  char *const newStr = (char *)calloc(maxSize, sizeof(char));
   const size_t newLength = maxSize - (rand() % (maxSize - 1));
 
   for (size_t i = 0; i < newLength; ++i) {
     newStr[i] = charsList[rand() % charsListLength];
   }
 
-  for (size_t i = newLength; i <= maxSize; ++i) {
-    newStr[i] = 0;
-  }
-
   return newStr;
 }
 
-int getPositiveNumber(const char *str) {
-  int x = 0;
-  if (sscanf(str, "%d", &x) == EOF) {
-    return -1;
-  }
-  return x;
-}
+#define getTimes(tv, ru)                                                       \
+  gettimeofday(tv, NULL);                                                      \
+  getrusage(RUSAGE_SELF, ru)
 
-enum AllocationMethod { DYNAMIC = 0, STATIC = 1 };
-
-int processArguments(int argc, char **argv, int *elementsNumber,
-                     int *elementSize, enum AllocationMethod *allocationMethod,
-                     int *sum, char **errorMessage) {
-  if (argc < 5) {
-    *errorMessage = "Not enough arguments.\n";
-    return -1;
-  }
-
-  int elementsN = getPositiveNumber(argv[1]);
-  int elementS = getPositiveNumber(argv[2]);
-  int argSum = getPositiveNumber(argv[4]);
-
-  if (elementsN == -1) {
-    *errorMessage = "Invalid enements number.\n";
-    return -1;
-  }
-
-  if (elementS == -1) {
-    *errorMessage = "Invalid enement size.\n";
-    return -1;
-  }
-
-  if (argSum == -1) {
-    *errorMessage = "Invalid ascii sum.\n";
-    return -1;
-  }
-
-  enum AllocationMethod am;
-
-  if (strcmp(argv[3], "dynamic") == 0) {
-    am = DYNAMIC;
-  } else if (strcmp(argv[3], "static") == 0) {
-    am = STATIC;
-  } else {
-    *errorMessage =
-        "Invalid allocation method provided. Choose: dynamic or static.\n";
-    return 1;
-  }
-
-  *elementsNumber = elementsN;
-  *elementSize = elementS;
-  *sum = argSum;
-  *allocationMethod = am;
-
-  return 0;
-}
-
-double timeDiffInSeconds(clock_t start, clock_t end) {
-  return (double)(end - start) / sysconf(_SC_CLK_TCK);
+double timevalToSec(struct timeval *tv) {
+  return (double)(tv->tv_sec) + ((double)tv->tv_usec / 1000000.0);
 }
 
 int main(int argc, char **argv) {
   (void)argc;
   (void)argv;
 
-  srand(time(NULL));
-
-  int elementsNumber;
-  int elementSize;
-  int asciiSum;
   enum AllocationMethod allocationMethod = 0;
+  Command *commands;
+  int commandsNumber;
   char *error = "";
 
-  if (processArguments(argc, argv, &elementsNumber, &elementSize,
-                       &allocationMethod, &asciiSum, &error) == -1) {
-    fprintf(stderr, "%s", error);
-    return 0;
-  }
-
-  clock_t realTimeClock;
-  struct tms tmsTimes;
-
-  BlockArray_init();
-
   BlockArray *currentBA = 0;
-
-  for(int i = 0; i < )
-
-  // Initial time
-  realTimeClocks[0] = times(tmsTimes[0]);
-
-  if (allocationMethod == DYNAMIC) {
-    if(BlockArray_create(&currentBA, elementsNumber) == -1) {
-      fprintf(stderr, "Unable to initialize BlockArray\n");
-      return 1;
-    }
-  } else {
-    currentBA = STATIC_BLOCK_ARRAY;
-  }
-
-  for (int i = 0; i < elementsNumber; ++i) {
-    char *str = randomString(elementSize);
-    BlockArray_addBlock(currentBA, i, str, strlen(str));
-  }
-
-  // Time after initialization
-  realTimeClocks[1] = times(tmsTimes[1]);
-
-  for(int i = 0; i < elementsNumber; i ++) {
-    BlockArray_findBlock(currentBA, asciiSum);
-  }
-
-  // Time after finding block
-  realTimeClocks[2] = times(tmsTimes[2]);
-
-  for (int i = 0; i < elementsNumber; ++i) {
-    char *str = randomString(elementSize);
-    BlockArray_addBlock(currentBA, i, str, strlen(str));
-  }
-
-  // Time after replacing half of blocks
-  realTimeClocks[3] = times(tmsTimes[3]);
-
-  for (int i = 0; i < elementsNumber / 2; ++i) {
-    BlockArray_removeBlock(currentBA, i);
-  }
-
-  // Time after removing half of blocks
-  realTimeClocks[4] = times(tmsTimes[4]);
+  struct timeval tvStart;
+  struct timeval tvEnd;
+  struct rusage ruStart;
+  struct rusage ruEnd;
 
   double summaryExecutionTime = 0.0;
-  for(int i = 1; i < 5; ++i) {
-    summaryExecutionTime += timeDiffInSeconds(realTimeClocks[i-1], realTimeClocks[i]);
+
+  FILE *logFile = NULL;
+
+  const char *operation = "";
+
+  int lastCreationBlockSize = 0;
+
+  srand(time(NULL));
+
+  if (processArguments(argc, argv, &allocationMethod, &commands,
+                       &commandsNumber, &error) == -1) {
+    fprintf(stderr, "%s\n", error);
+    return 1;
+  }
+
+  logFile = fopen("raport3a.txt", "w");
+
+  if (logFile == NULL) {
+    fprintf(stderr, "Unable to open log file: `raport3a.txt'\n");
+    return 1;
   }
 
   printf("%-14s\t%-11s\t%-11s\t%-11s\n", "", "User", "System", "Real");
-  printf("%-14s\t%-10.8fs\t%-10.8fs\t%-10.8fs\n",
-        "Init & fill",
-        timeDiffInSeconds(tmsTimes[0]->tms_stime, tmsTimes[1]->tms_stime)/elementsNumber,
-        timeDiffInSeconds(tmsTimes[0]->tms_utime, tmsTimes[1]->tms_utime)/elementsNumber,
-        timeDiffInSeconds(realTimeClocks[0], realTimeClocks[1])/elementsNumber);
+  fprintf(logFile, "%-14s\t%-11s\t%-11s\t%-11s\n", "", "User", "System",
+          "Real");
 
-  printf("%-14s\t%-10.8fs\t%-10.8fs\t%-10.8fs\n",
-        "Find",
-        timeDiffInSeconds(tmsTimes[1]->tms_stime, tmsTimes[2]->tms_stime)/elementsNumber,
-        timeDiffInSeconds(tmsTimes[1]->tms_utime, tmsTimes[2]->tms_utime)/elementsNumber,
-        timeDiffInSeconds(realTimeClocks[1], realTimeClocks[2])/elementsNumber);
-  
-  printf("%-14s\t%-10.8fs\t%-10.8fs\t%-10.8fs\n",
-        "Replace 1/2",
-        timeDiffInSeconds(tmsTimes[2]->tms_stime, tmsTimes[3]->tms_stime)/elementsNumber/2.0,
-        timeDiffInSeconds(tmsTimes[2]->tms_utime, tmsTimes[3]->tms_utime)/elementsNumber/2.0,
-        timeDiffInSeconds(realTimeClocks[2], realTimeClocks[3])/elementsNumber/2.0);
-  
-  printf("%-14s\t%-10.8fs\t%-10.8fs\t%-10.8fs\n",
-        "Remove 1/2",
-        timeDiffInSeconds(tmsTimes[3]->tms_stime, tmsTimes[4]->tms_stime)/elementsNumber/2.0,
-        timeDiffInSeconds(tmsTimes[3]->tms_utime, tmsTimes[4]->tms_utime)/elementsNumber/2.0,
-        timeDiffInSeconds(realTimeClocks[3], realTimeClocks[4])/elementsNumber/2.0);
+  BlockArray_init();
+
+  for (int i = 0; i < commandsNumber; ++i) {
+    Command currentCommand = commands[i];
+
+    memset(&tvStart, 0, sizeof(struct timeval));
+    memset(&tvEnd, 0, sizeof(struct timeval));
+    memset(&ruStart, 0, sizeof(struct rusage));
+    memset(&ruEnd, 0, sizeof(struct rusage));
+
+    switch (currentCommand.type) {
+    case CREATE:
+
+      getTimes(&tvStart, &ruStart);
+
+      if (allocationMethod == DYNAMIC) {
+        if (BlockArray_create(&currentBA, currentCommand.firstArgument) == -1) {
+          fprintf(stderr, "Unable to initialize BlockArray\n");
+          return 1;
+        }
+      } else {
+        currentBA = STATIC_BLOCK_ARRAY;
+      }
+
+      for (size_t j = 0; j < currentBA->size; j++) {
+        char *str = randomString(currentCommand.secondArgument);
+        BlockArray_addBlock(currentBA, j, str, strlen(str));
+        free(str);
+      }
+
+      getTimes(&tvEnd, &ruEnd);
+
+      lastCreationBlockSize = currentCommand.secondArgument;
+
+      operation = "Init & fill";
+      break;
+    case SEARCH:
+      getTimes(&tvStart, &ruStart);
+
+      BlockArray_findBlock(currentBA, currentCommand.firstArgument);
+
+      getTimes(&tvEnd, &ruEnd);
+
+      operation = "Search";
+      break;
+    case REMOVE_AND_ADD:
+    case ADD:
+      if (currentCommand.firstArgument < 0 ||
+          currentCommand.firstArgument > (int)currentBA->size) {
+        fprintf(stderr,
+                "Invalid argument for `add' or `remove_and_add` command.\n");
+        break;
+      }
+
+      getTimes(&tvStart, &ruStart);
+
+      for (int j = 0; j < currentCommand.firstArgument; j++) {
+        char *str = randomString(lastCreationBlockSize);
+        BlockArray_addBlock(currentBA, j, str, strlen(str));
+        free(str);
+      }
+
+      getTimes(&tvEnd, &ruEnd);
+
+      operation = "Add";
+      break;
+    case REMOVE:
+      if (currentCommand.firstArgument < 0 ||
+          currentCommand.firstArgument > (int)currentBA->size) {
+        fprintf(stderr, "Invalid argument for `remove' command.\n");
+        break;
+      }
+
+      getTimes(&tvStart, &ruStart);
+
+      for (int j = 0; j < currentCommand.firstArgument; ++j) {
+        BlockArray_removeBlock(currentBA, j);
+      }
+
+      getTimes(&tvEnd, &ruEnd);
+
+      operation = "Remove";
+
+      break;
+    case UNKNOWN:
+    default:
+      break;
+    }
+
+    summaryExecutionTime += timevalToSec(&tvEnd) - timevalToSec(&tvStart);
+    printf("%-14s\t%-8fs\t%-8fs\t%-8fs\n", operation,
+           timevalToSec(&ruEnd.ru_utime) - timevalToSec(&ruStart.ru_utime),
+           timevalToSec(&ruEnd.ru_stime) - timevalToSec(&ruStart.ru_stime),
+           timevalToSec(&tvEnd) - timevalToSec(&tvStart));
+
+    fprintf(logFile, "%-14s\t%-8fs\t%-8fs\t%-8fs\n", operation,
+            timevalToSec(&ruEnd.ru_utime) - timevalToSec(&ruStart.ru_utime),
+            timevalToSec(&ruEnd.ru_stime) - timevalToSec(&ruStart.ru_stime),
+            timevalToSec(&tvEnd) - timevalToSec(&tvStart));
+  }
 
   printf("Summary time:   %10.8fs\n", summaryExecutionTime);
+  fprintf(logFile, "Summary time:   %10.8fs\n", summaryExecutionTime);
+
+  fclose(logFile);
 
   return 0;
 }
