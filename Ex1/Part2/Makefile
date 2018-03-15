@@ -16,12 +16,14 @@ DYNAMIC_LIB=libblockarray.so
 MAIN_EXEC= main
 
 LIB_O= block_array.o
-MAIN_O= main.o
+MAIN_O= main.o args.o
 
 all: $(DYNAMIC_LIB) $(MAIN_EXEC)
 
+rebuild: clean all
+
 clean:
-	$(RM) $(STATIC_LIB) $(DYNAMIC_LIB) ./*.o $(MAIN_EXEC)
+	$(RM) $(STATIC_LIB) $(DYNAMIC_LIB) ./*.o $(MAIN_EXEC) || true
 
 $(MAIN_EXEC): $(MAIN_O) $(STATIC_LIB) 
 	$(CC) $? -o $@

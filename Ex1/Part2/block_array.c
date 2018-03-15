@@ -1,6 +1,5 @@
 #include "block_array.h"
 
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -89,6 +88,9 @@ int BlockArray_removeBlock(BlockArray *blockArray, size_t index) {
   }
 
   free(blockArray->blocks[index]);
+  blockArray->blocks[index] = NULL;
+
+  blockArray->blocksSizes[index] = 0;
 
   return 0;
 }
@@ -122,7 +124,7 @@ const char *BlockArray_findBlock(BlockArray *blockArray, size_t asciiSumSearched
     const int currentSum =
         asciiSum(blockArray->blocks[i], blockArray->blocksSizes[i]);
 
-    if (abs(bestSum - asciiSumSearched) > abs(currentSum - asciiSumSearched)) {
+    if (bestSum - asciiSumSearched > currentSum - asciiSumSearched) {
       bestSum = currentSum;
       bestBlock = blockArray->blocks[i];
     }
