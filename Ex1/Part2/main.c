@@ -40,9 +40,95 @@ int getPositiveNumber(const char *str) {
 
 enum AllocationMethod { DYNAMIC = 0, STATIC = 1 };
 
+enum CommandType { UNKNOWN = 0, CREATE = 1, SEARCH = 2, REMOVE = 3, ADD = 4, REMOVE_AND_ADD = 5};
+
+typedef struct CommandStruct {
+  enum CommandType type;
+  int firstArgument;
+  int secondArgument;
+} Command;
+
+enum CommandType getCommandType(const char * cmd) {
+  if(strcmp(cmd, "create_table") == 0) {
+    return CREATE;
+  } else if (strcmp(cmd, "search_element") == 0) {
+    return SEARCH;
+  } else if (strcmp(cmd, "remove") == 0) {
+    return REMOVE;
+  } else if(strcmp(cmd, "add") == 0) {
+    return ADD;
+  } else if(strcmp(cmd, "remove_and_add") == 0) {
+    return REMOVE_AND_ADD;
+  } else {
+    return UNKNOWN;
+  }
+}
+
+int getCommandArgumentsNumber(const char * cmd) {
+  switch(getCommandType(cmd)) {
+    case CREATE:
+      return 2;
+      break;
+    case SEARCH:
+    case REMOVE:
+    case ADD:
+    case REMOVE_AND_ADD:
+      return 1;
+      break;
+    case UNKNOWN:
+    default:
+      return 0;
+      break;
+  }
+}
+
+Command * parseCommands(int argc, int startIndex, char ** argv, int * commandsNumber, char ** errorMsg) {
+  // Validate commands:
+  int commandsNum = 0;
+  int count = 0;
+  for(int i = startIndex; i < argc;) {
+    count = getCommandArgumentsNumber(argv[i]);
+    if(count == 0) {
+      *errorMsg = "Invalid commands";
+      return NULL;
+    } else if(i + count >= argc) {
+      *errorMsg = "Not enough parameters for commands.";
+       return NULL;
+    }
+    i += count + 1;
+    commandsNum++;
+  }
+
+  *commandsNumber = commandsNum;
+
+  if(commandsNum == 0) {
+    return NULL;
+  }
+
+  Command * commands = (Command*) calloc(commandsNum, sizeof(Command));
+
+  int currentCommand = 0;
+  for(int i = startIndex; i < argc;) {
+    commands[currentCommand].type = getCommandType(argv[i]);
+
+    commands[currentCommand].firstArgument = getPositiveNumber(argv[i+1]);
+
+    if(commands[currentCommand].type == CREATE) {
+      commands[currentCommand].secondArgument = getPositiveNumber(argv[i+2]);
+      i += 3;
+    } else {
+      i += 2;
+    }
+    currentCommand++;
+  }
+
+  return commands;
+}
+
 int processArguments(int argc, char **argv, int *elementsNumber,
                      int *elementSize, enum AllocationMethod *allocationMethod,
-                     int *sum, char **errorMessage) {
+                     int *sum, Command ** commands, int * commandsNumber, 
+                     char **errorMessage) {
   if (argc < 5) {
     *errorMessage = "Not enough arguments.\n";
     return -1;
@@ -76,7 +162,12 @@ int processArguments(int argc, char **argv, int *elementsNumber,
   } else {
     *errorMessage =
         "Invalid allocation method provided. Choose: dynamic or static.\n";
-    return 1;
+    return -1;
+  }
+  *commands = parseCommands(argc, 5, argv, commandsNumber, errorMessage);
+
+  if(commands == NULL) {
+    return -1;
   }
 
   *elementsNumber = elementsN;
@@ -101,12 +192,15 @@ int main(int argc, char **argv) {
   int elementSize;
   int asciiSum;
   enum AllocationMethod allocationMethod = 0;
+  Command * commands;
+  int commandsNumber;
   char *error = "";
 
   if (processArguments(argc, argv, &elementsNumber, &elementSize,
-                       &allocationMethod, &asciiSum, &error) == -1) {
+                       &allocationMethod, &asciiSum, &commands, &commandsNumber,
+                       &error) == -1) {
     fprintf(stderr, "%s", error);
-    return 0;
+    return 1;
   }
 
   clock_t * realTimeClocks = (clock_t*)malloc(5 * sizeof(clock_t));

@@ -6,7 +6,8 @@ CFLAGS= --std=c11 -Wall -Wextra -fPIC -pedantic -Wall \
     -Wundef -Wnested-externs -Wcast-qual -Wshadow -Wunreachable-code \
     -Wlogical-op -Wfloat-equal -Wstrict-aliasing=2 -Wredundant-decls \
     -Wold-style-definition -Werror \
-    -fno-omit-frame-pointer -ffloat-store -fno-common -fstrict-aliasing
+    -fno-omit-frame-pointer -ffloat-store -fno-common -fstrict-aliasing \
+    $(MYFLAGS)
 RM= rm -r 
 AR= ar rcu  
 
