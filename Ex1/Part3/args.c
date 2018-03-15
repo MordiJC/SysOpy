@@ -49,7 +49,7 @@ int getCommandArgumentsNumber(const char *cmd) {
 Command *parseCommands(int argc, int startIndex, char **argv,
                        int *commandsNumber, char **errorMsg) {
   // Validate commands:
-  int commandsNum = 0;
+  size_t commandsNum = 0;
   int count = 0;
   for (int i = startIndex; i < argc;) {
     count = getCommandArgumentsNumber(argv[i]);
@@ -64,7 +64,7 @@ Command *parseCommands(int argc, int startIndex, char **argv,
     commandsNum++;
   }
 
-  *commandsNumber = commandsNum;
+  *commandsNumber = (int)commandsNum;
 
   if (commandsNum == 0) {
     return NULL;

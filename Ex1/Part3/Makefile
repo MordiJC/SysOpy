@@ -80,6 +80,8 @@ help:
 	@$(ECHO) "$(MAIN_EXEC)             - build main executable (with static linking)"
 	@$(ECHO) "$(MAIN_EXEC)_dynamic     - build main executable (with dynamic linking)"
 	@$(ECHO) "$(MAIN_EXEC)_runtime     - build main executable (with liading library on runtime)"
+	@$(ECHO) "Optimization flags: -O0 -O1 -O2 -O3 -Og -Os"
+	@$(ECHO) "             Usage: make <target> MYFLAGS=-Ox"
 
 depend:
 	@$(CC) $(CFLAGS) -MM *.c
