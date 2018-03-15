@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
 
   if (processArguments(argc, argv, &allocationMethod, &commands,
                        &commandsNumber, &error) == -1) {
-    fprintf(stderr, "%s", error);
+    fprintf(stderr, "%s\n", error);
     return 1;
   }
 

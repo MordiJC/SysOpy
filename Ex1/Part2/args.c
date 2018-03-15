@@ -112,7 +112,7 @@ int processArguments(int argc, char **argv,
   }
   *commands = parseCommands(argc, 2, argv, commandsNumber, errorMessage);
 
-  if (commands == NULL) {
+  if (*commands == NULL) {
     return -1;
   }
 
