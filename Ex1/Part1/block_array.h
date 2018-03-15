@@ -24,6 +24,6 @@ int BlockArray_addBlock(BlockArray *blockArray, int index, const char *source,
 
 int BlockArray_removeBlock(BlockArray *blockArray, size_t index);
 
-const char * BlockArray_findBlock(BlockArray *blockArray, int asciiSumSearched);
+const char * BlockArray_findBlock(BlockArray *blockArray, size_t asciiSumSearched);
 
 #endif /* BLOCK_ARRAY_H_ */
