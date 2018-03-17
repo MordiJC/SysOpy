@@ -194,7 +194,7 @@ const char *BlockArray_findBlock(BlockArray *blockArray, size_t asciiSumSearched
     const int currentSum =
         asciiSum(blockArray->blocks[i], blockArray->blocksSizes[i]);
 
-    if (abs(bestSum - asciiSumSearched) > abs(currentSum - asciiSumSearched)) {
+    if (abs((int)bestSum - (int)asciiSumSearched) > abs((int)currentSum - (int)asciiSumSearched)) {
       bestSum = currentSum;
       bestBlock = blockArray->blocks[i];
     }
