@@ -12,7 +12,7 @@ RM= rm -r
 ECHO= echo -e
 
 OUT= main
-CORE_O= main.o
+CORE_O= main.o files.o
 
 .PHONY: all
 
@@ -26,4 +26,5 @@ $(OUT): $(CORE_O)
 clean:
 	$(RM) ./*.o ./main
 
-main.o: main.c
+files.o: files.c files.h
+main.o: main.c files.h

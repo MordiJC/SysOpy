@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "files.h"
+
 #define printErrorAndExit(msg)    \
     fprintf(stderr, "%s\n", msg); \
     exit(1)
@@ -54,32 +56,16 @@ void generateFile(const char* fileName, int records, int recordLength) {
     fclose(file);
 }
 
-typedef enum { SYS = 0, LIB = 1 } SysOrLib;
-
-typedef struct {
-    union {
-        int fd;
-        FILE * fp;
-    } handle;
-    SysOrLib type;
-} File;
-
-int createPosixFileModeFromStd(const char * mode) {
-    int outputMode = 0;
-
-    
-}
-
-File * open_file(const char * path, const char * mode) {
-
-}
-
 void sortFile(const char* filename, SysOrLib sysorlib, int records,
               int recordLength) {
     (void)filename;
     (void)sysorlib;
     (void)records;
     (void)recordLength;
+
+    File* file = open_file(filename, READ_F | WRITE_F, sysorlib);
+
+    close_file(file);
 }
 
 void copyFile(const char* filenameIn, const char* filenameOut,
@@ -89,6 +75,14 @@ void copyFile(const char* filenameIn, const char* filenameOut,
     (void)sysorlib;
     (void)records;
     (void)recordLength;
+
+    const char* buffer = malloc(recordLength);
+
+    File* inputFile = open_file(filenameIn, READ_F, sysorlib);
+    File* outputFile = open_file(filenameOut, WRITE_F, sysorlib);
+
+    close_file(inputFile);
+    close_file(outputFile);
 }
 
 void generateCommand(int argc, char** argv) {
