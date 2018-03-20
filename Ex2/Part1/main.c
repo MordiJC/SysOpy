@@ -3,10 +3,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/resource.h>
+#include <sys/time.h>
 
 #define printErrorAndExit(msg)    \
     fprintf(stderr, "%s\n", msg); \
     exit(1)
+
+double timevalToSec(struct timeval* tv) {
+    return (double)(tv->tv_sec) + ((double)tv->tv_usec / 1000000.0);
+}
 
 void readPositiveNumberOrPrintMessageAndExit(const char* input, int* value,
                                              const char* message) {
@@ -47,6 +53,7 @@ void generateFile(const char* fileName, int records, int recordLength) {
 
     for (int i = 0; i < records; ++i) {
         char* str = randomString(recordLength);
+        str[recordLength-1] = '\n';
 
         fwrite(str, sizeof(char), strlen(str), file);
 
@@ -155,7 +162,33 @@ void sortCommand(int argc, char** argv) {
         printErrorAndExit("Invalid implementation selected");
     }
 
+    struct rusage timeStart;
+    struct rusage timeEnd;
+
+    getrusage(RUSAGE_SELF, &timeStart);
+
     sortFile(filename, sysorlib, recordAmount, recordLength);
+
+    getrusage(RUSAGE_SELF, &timeEnd);
+
+    FILE* logFile = fopen("log.txt", "a+");
+
+    printf("Input: %s\nOutput: %s\nRecords: %d\nRecord length: %d\nMode: %s\n",
+        filename, filename, recordAmount, recordLength, mode);
+
+    fprintf(logFile, "Input: %s\nOutput: %s\nRecords: %d\nRecord length: %d\nMode: %s\n",
+        filename, filename, recordAmount, recordLength, mode);
+
+    printf("%-14s\t%-11s\t%-11s\n", "", "User", "System");
+    fprintf(logFile, "%-14s\t%-11s\t%-11s\n", "", "User", "System");
+
+    printf("%-14s\t%-8fs\t%-8fs\n", "Sorting",
+           timevalToSec(&timeEnd.ru_utime) - timevalToSec(&timeStart.ru_utime),
+           timevalToSec(&timeEnd.ru_stime) - timevalToSec(&timeStart.ru_stime));
+
+    fprintf(logFile, "%-14s\t%-8fs\t%-8fs\n", "Sorting",
+            timevalToSec(&timeEnd.ru_utime) - timevalToSec(&timeStart.ru_utime),
+            timevalToSec(&timeEnd.ru_stime) - timevalToSec(&timeStart.ru_stime));
 }
 
 void copyCommand(int argc, char** argv) {
@@ -183,8 +216,34 @@ void copyCommand(int argc, char** argv) {
         printErrorAndExit("Invalid implementation selected");
     }
 
+    struct rusage timeStart;
+    struct rusage timeEnd;
+
+    getrusage(RUSAGE_SELF, &timeStart);
+
     copyFile(firstFileName, secondFileName, sysorlib, recordAmount,
              recordLength);
+    
+    getrusage(RUSAGE_SELF, &timeEnd);
+
+    FILE* logFile = fopen("log.txt", "a+");
+    
+    printf("Input: %s\nOutput: %s\nRecords: %d\nRecord length: %d\nMode: %s\n",
+        firstFileName, secondFileName, recordAmount, recordLength, mode);
+
+    fprintf(logFile, "Input: %s\nOutput: %s\nRecords: %d\nRecord length: %d\nMode: %s\n",
+        firstFileName, secondFileName, recordAmount, recordLength, mode);
+
+    printf("%-14s\t%-11s\t%-11s\n", "", "User", "System");
+    fprintf(logFile, "%-14s\t%-11s\t%-11s\n", "", "User", "System");
+
+    printf("%-14s\t%-8fs\t%-8fs\n", "Copying",
+           timevalToSec(&timeEnd.ru_utime) - timevalToSec(&timeStart.ru_utime),
+           timevalToSec(&timeEnd.ru_stime) - timevalToSec(&timeStart.ru_stime));
+
+    fprintf(logFile, "%-14s\t%-8fs\t%-8fs\n", "Copying",
+            timevalToSec(&timeEnd.ru_utime) - timevalToSec(&timeStart.ru_utime),
+            timevalToSec(&timeEnd.ru_stime) - timevalToSec(&timeStart.ru_stime));
 }
 
 int main(int argc, char** argv) {

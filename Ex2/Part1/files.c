@@ -37,10 +37,10 @@ File* open_file(const char* path, FileOpenMode mode, SysOrLib sysorlib) {
 
         const char* fileOpenMode = "";
 
-        if(mode & WRITE_F && mode && READ_F) {
+        if(mode & WRITE_F && mode & READ_F) {
             fileOpenMode = "r+b";
         } else if (mode & WRITE_F) {
-            fileOpenMode = "w+b";
+            fileOpenMode = "wb";
         } else if (mode & READ_F) {
             fileOpenMode = "rb";
         } else if (mode & APPEND_F) {
@@ -50,6 +50,7 @@ File* open_file(const char* path, FileOpenMode mode, SysOrLib sysorlib) {
         file->handle.fp = fopen(path, fileOpenMode);
 
         if (file->handle.fp == NULL) {
+            perror("IO error");
             free(file);
             return NULL;
         }
