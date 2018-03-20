@@ -66,7 +66,7 @@ test_clean:
 .PHONY: depend
 
 depend:
-	$(GCC) -MM ./*.c
+	$(CC) -MM ./*.c
 
 .PHONY: test_generate
 
