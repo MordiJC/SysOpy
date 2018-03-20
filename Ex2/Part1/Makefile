@@ -73,12 +73,20 @@ depend:
 test_generate:
 	# 4 bytes long records
 	./$(OUT) generate ./r_4096-l_4.test_data 4096 4
+	# for copying
+	./$(OUT) generate ./r_65536-l_4.test_data 65536 4
 	# 512 bytes long records
 	./$(OUT) generate ./r_4096-l_512.test_data 4096 512
+	# for copying
+	./$(OUT) generate ./r_32768-l_512.test_data 32768 512
 	# 4096 bytes long records
 	./$(OUT) generate ./r_4096-l_4096.test_data 4096 4096
+	# for copying
+	./$(OUT) generate ./r_32768-l_4096.test_data 32768 4096
 	# 8192 bytes long records
 	./$(OUT) generate ./r_2048-l_8192.test_data 2048 8192
+	# for copying
+	./$(OUT) generate ./r_32768-l_8192.test_data 32768 8192
 
 .PHONY: test_copy
 
@@ -95,6 +103,21 @@ test_copy:
 	# 8192 bytes long records
 	./$(OUT) copy ./r_2048-l_8192.test_data ./r_2048-l_8192.lib.test_data 2048 8192 lib
 	./$(OUT) copy ./r_2048-l_8192.test_data ./r_2048-l_8192.sys.test_data 2048 8192 sys
+
+	# Copy tests ("big" files)
+	# 4 bytes long records
+	./$(OUT) copy ./r_65536-l_4.test_data ./r_65536-l_4.lib.test_data 65536 4 lib
+	./$(OUT) copy ./r_65536-l_4.test_data ./r_65536-l_4.sys.test_data 65536 4 sys
+	# 512 bytes long records
+	./$(OUT) copy ./r_32768-l_512.test_data ./r_32768-l_512.lib.test_data 32768 512 lib
+	./$(OUT) copy ./r_32768-l_512.test_data ./r_32768-l_512.sys.test_data 32768 512 sys
+	# 4096 bytes long records
+	./$(OUT) copy ./r_32768-l_4096.test_data ./r_32768-l_4096.lib.test_data 32768 4096 lib
+	./$(OUT) copy ./r_32768-l_4096.test_data ./r_32768-l_4096.sys.test_data 32768 4096 sys
+	# 8192 bytes long records
+	./$(OUT) copy ./r_32768-l_8192.test_data ./r_32768-l_8192.lib.test_data 32768 8192 lib
+	./$(OUT) copy ./r_32768-l_8192.test_data ./r_32768-l_8192.sys.test_data 32768 8192 sys
+
 
 .PHONY: test_sort
 
