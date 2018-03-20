@@ -71,34 +71,42 @@ depend:
 .PHONY: test_generate
 
 test_generate:
-	./$(OUT) generate ./r_26214400-l_4.test_data 26214400 4
-	./$(OUT) generate ./r_204800-l_512.test_data 204800 512
-	./$(OUT) generate ./r_25600-l_4096.test_data 25600 4096
-	./$(OUT) generate ./r_12800-l_8192.test_data 12800 8192
+	# 4 bytes long records
+	./$(OUT) generate ./r_4096-l_4.test_data 4096 4
+	# 512 bytes long records
+	./$(OUT) generate ./r_4096-l_512.test_data 4096 512
+	# 4096 bytes long records
+	./$(OUT) generate ./r_4096-l_4096.test_data 4096 4096
+	# 8192 bytes long records
+	./$(OUT) generate ./r_2048-l_8192.test_data 2048 8192
 
 .PHONY: test_copy
 
 test_copy:
-	./$(OUT) copy ./r_26214400-l_4.test_data ./r_26214400-l_4.lib.test_data 26214400 4 lib
-	./$(OUT) copy ./r_26214400-l_4.test_data ./r_26214400-l_4.sys.test_data 26214400 4 sys
-	./$(OUT) copy ./r_204800-l_512.test_data ./r_204800-l_512.lib.test_data 204800 512 lib
-	./$(OUT) copy ./r_204800-l_512.test_data ./r_204800-l_512.sys.test_data 204800 512 sys
-	./$(OUT) copy ./r_25600-l_4096.test_data ./r_25600-l_4096.lib.test_data 25600 4096 lib
-	./$(OUT) copy ./r_25600-l_4096.test_data ./r_25600-l_4096.sys.test_data 25600 4096 sys
-	./$(OUT) copy ./r_12800-l_8192.test_data ./r_12800-l_8192.lib.test_data 12800 8192 lib
-	./$(OUT) copy ./r_12800-l_8192.test_data ./r_12800-l_8192.sys.test_data 12800 8192 sys
+	# 4 bytes long records
+	./$(OUT) copy ./r_4096-l_4.test_data ./r_4096-l_4.lib.test_data 4096 4 lib
+	./$(OUT) copy ./r_4096-l_4.test_data ./r_4096-l_4.sys.test_data 4096 4 sys
+	# 512 bytes long records
+	./$(OUT) copy ./r_4096-l_512.test_data ./r_4096-l_512.lib.test_data 4096 512 lib
+	./$(OUT) copy ./r_4096-l_512.test_data ./r_4096-l_512.sys.test_data 4096 512 sys
+	# 4096 bytes long records
+	./$(OUT) copy ./r_4096-l_4096.test_data ./r_4096-l_4096.lib.test_data 4096 4096 lib
+	./$(OUT) copy ./r_4096-l_4096.test_data ./r_4096-l_4096.sys.test_data 4096 4096 sys
+	# 8192 bytes long records
+	./$(OUT) copy ./r_2048-l_8192.test_data ./r_2048-l_8192.lib.test_data 2048 8192 lib
+	./$(OUT) copy ./r_2048-l_8192.test_data ./r_2048-l_8192.sys.test_data 2048 8192 sys
 
 .PHONY: test_sort
 
 test_sort:
-	./$(OUT) sort ./r_26214400-l_4.lib.test_data 26214400 4 lib
-	./$(OUT) sort ./r_26214400-l_4.sys.test_data 26214400 4 sys
-	./$(OUT) sort ./r_204800-l_512.lib.test_data 204800 512 lib
-	./$(OUT) sort ./r_204800-l_512.sys.test_data 204800 512 sys
-	./$(OUT) sort ./r_25600-l_4096.lib.test_data 25600 4096 lib
-	./$(OUT) sort ./r_25600-l_4096.sys.test_data 25600 4096 sys
-	./$(OUT) sort ./r_12800-l_8192.lib.test_data 12800 8192 lib
-	./$(OUT) sort ./r_12800-l_8192.sys.test_data 12800 8192 sys
+	./$(OUT) sort ./r_4096-l_4.lib.test_data 4096 4 lib
+	./$(OUT) sort ./r_4096-l_4.sys.test_data 4096 4 sys
+	./$(OUT) sort ./r_4096-l_512.lib.test_data 4096 512 lib
+	./$(OUT) sort ./r_4096-l_512.sys.test_data 4096 512 sys
+	./$(OUT) sort ./r_4096-l_4096.lib.test_data 4096 4096 lib
+	./$(OUT) sort ./r_4096-l_4096.sys.test_data 4096 4096 sys
+	./$(OUT) sort ./r_2048-l_8192.lib.test_data 2048 8192 lib
+	./$(OUT) sort ./r_2048-l_8192.sys.test_data 2048 8192 sys
 
 .PHONY: test
 
