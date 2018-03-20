@@ -7,7 +7,9 @@ CFLAGS= --std=c11 -Wall -Wextra -fPIC -pedantic -Wall \
     -Wlogical-op -Wfloat-equal -Wstrict-aliasing=2 -Wredundant-decls \
     -Wold-style-definition -Werror \
     -fno-omit-frame-pointer -ffloat-store -fno-common -fstrict-aliasing \
+    -fsanitize=address \
 	$(MYFLAGS)
+LDFLAGS=-lasan -lubsan
 RM= rm -r
 ECHO= echo -e
 
@@ -19,7 +21,7 @@ CORE_O= main.o files.o
 all: $(OUT)
 
 $(OUT): $(CORE_O)
-	$(CC) $? -o $@
+	$(CC) $? -o $@ $(LDFLAGS)
 
 .PHONY: clean
 

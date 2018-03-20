@@ -1,8 +1,8 @@
+#include "files.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "files.h"
 
 #define printErrorAndExit(msg)    \
     fprintf(stderr, "%s\n", msg); \
@@ -58,28 +58,57 @@ void generateFile(const char* fileName, int records, int recordLength) {
 
 void sortFile(const char* filename, SysOrLib sysorlib, int records,
               int recordLength) {
-    (void)filename;
-    (void)sysorlib;
-    (void)records;
-    (void)recordLength;
-
     File* file = open_file(filename, READ_F | WRITE_F, sysorlib);
+
+    if (file == NULL) {
+        printErrorAndExit("UNABLE TO OPEN FILE");
+    }
+
+    char* buffer = malloc(recordLength * sizeof(char));
+    char* compareBuffer = malloc(recordLength * sizeof(char));  // A[j]
+
+    for (int i = 1; i < records; ++i) {
+        int j = i - 1;
+
+        read_file_from_offset(file, buffer, recordLength, i * recordLength);
+
+        while (j >= 0) {
+            read_file_from_offset(file, compareBuffer, recordLength,
+                                  j * recordLength);
+
+            if ((unsigned char)compareBuffer[0] <= (unsigned char)buffer[0]) {
+                break;
+            }
+
+            write_file(file, compareBuffer, recordLength,
+                       (j + 1) * recordLength);
+
+            j--;
+        }
+
+        write_file(file, buffer, recordLength, (j + 1) * recordLength);
+    }
+
+    free(buffer);
+    free(compareBuffer);
 
     close_file(file);
 }
 
 void copyFile(const char* filenameIn, const char* filenameOut,
               SysOrLib sysorlib, int records, int recordLength) {
-    (void)filenameIn;
-    (void)filenameOut;
-    (void)sysorlib;
-    (void)records;
-    (void)recordLength;
-
-    const char* buffer = malloc(recordLength);
+    char* buffer = malloc(recordLength * sizeof(char));
 
     File* inputFile = open_file(filenameIn, READ_F, sysorlib);
     File* outputFile = open_file(filenameOut, WRITE_F, sysorlib);
+
+    for (int i = 0; i < records; ++i) {
+        read_file(inputFile, buffer, recordLength);
+
+        append_file(outputFile, buffer, recordLength);
+    }
+
+    free(buffer);
 
     close_file(inputFile);
     close_file(outputFile);
@@ -175,8 +204,8 @@ int main(int argc, char** argv) {
         fprintf(stderr,
                 "Invalid arguments.\nAvailable commands:\n"
                 "generate <file> <rowsN> <rowSize>\n"
-                "sort <file> <rowsN> <rowSize> [sys|lib]\n"
-                "copy <fileIn> <fileOut> <rowsN> <rowSize>\n");
+                "sort <file> <rowsN> <rowSize> <sys|lib>\n"
+                "copy <fileIn> <fileOut> <rowsN> <rowSize> <sys|lib>\n");
         return 1;
     }
 
