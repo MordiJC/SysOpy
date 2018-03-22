@@ -66,7 +66,7 @@ void parseArguments(int argc, char* argv[], ProgramArguments* pa) {
     }
 }
 
-char const* sperm(__mode_t mode) {
+char const* strperm(__mode_t mode) {
     char* local_buff = (char*)calloc(10, sizeof(char));
     int i = 0;
     // user permissions
@@ -119,112 +119,64 @@ char const* sperm(__mode_t mode) {
     return local_buff;
 }
 
-void printDirContents(struct dirent* dirEntry) {
+void my_nftw(const char* dirpath,
+             void (*fn)(const char* fpath, const struct stat* sb)) {
     DIR* dir = NULL;
     struct dirent* currentDirEntry = NULL;
-    int skip;
+    struct stat stbuf;
+    size_t dirpathLen = strlen(dirpath);
 
-    if (strcmp(dirEntry->d_name, "..") == 0 ||
-        strcmp(dirEntry->d_name, ".") == 0) {
-        return;
-    }
-
-    dir = opendir(dirEntry->d_name);
+    dir = opendir(dirpath);
 
     if (dir == NULL) {
-        printErrorAndExit("Unable to open directory!!!");
+        printErrorAndExit("Unable to open directory.");
     }
 
     while ((currentDirEntry = readdir(dir)) != NULL) {
-        skip = 0;
+        char* filePath = (char*)calloc(
+            dirpathLen + 1 + strlen(currentDirEntry->d_name) + 1, sizeof(char));
 
-        char * fullRelativePath = calloc(strlen(currentDirEntry->d_name) + strlen(dirEntry->d_name) + 2, sizeof(char));
+        strcat(filePath, dirpath);
+        strcat(filePath, "/");
+        strcat(filePath, currentDirEntry->d_name);
 
-        strcat(fullRelativePath, dirEntry->d_name);
-        strcat(fullRelativePath, "/");
-        strcat(fullRelativePath, currentDirEntry->d_name);
+        stat(filePath, &stbuf);
 
-        struct stat stbuf;
-
-        stat(fullRelativePath, &stbuf);
-
-        char* path = realpath(fullRelativePath, NULL);
-        char* file = basename(fullRelativePath);
-
-        if (strcmp(file, "..") == 0 || strcmp(file, ".") == 0) {
-            skip = 1;
-        } else if ((currentDirEntry->d_type == DT_LNK &&
-                    !S_ISREG(stbuf.st_mode)) ||
-                   currentDirEntry->d_type != DT_REG) {
-            skip = 1;
-        }
-        
-        if (currentDirEntry->d_type == DT_DIR || S_ISDIR(stbuf.st_mode)) {
-            if (strcmp(file, "..") == 0 || strcmp(file, ".") == 0) {
-                printDirContents(currentDirEntry);
-            }
+        if (strcmp(currentDirEntry->d_name, "..") == 0 ||
+            strcmp(currentDirEntry->d_name, ".") == 0) {
+            continue;
+        } else if (currentDirEntry->d_type == DT_LNK &&
+                   !S_ISREG(stbuf.st_mode)) {
+            continue;
+        } else if (currentDirEntry->d_type == DT_DIR ||
+                   S_ISDIR(stbuf.st_mode)) {
+            my_nftw(filePath, fn);
+        } else if(S_ISREG(stbuf.st_mode)) {
+            fn(filePath, &stbuf);
         }
 
-        if (skip == 0) {
-            const char* perms = sperm(stbuf.st_mode);
-            printf("%10.10s %10ldB %s \n", perms, stbuf.st_size, path);
-        }
-        free(path);
+        free(filePath);
     }
 
     closedir(dir);
 }
 
-void printFiles(ProgramArguments* programArgs) {
-    DIR* dir = NULL;
-    struct dirent* currentDirEntry = NULL;
-    int skip;
+ProgramArguments programArgs;
 
-    dir = opendir(programArgs->dirPath);
-
-    if (dir == NULL) {
-        printErrorAndExit("Unable to open directory");
-    }
-
-    while ((currentDirEntry = readdir(dir)) != NULL) {
-        skip = 0;
-
-        struct stat stbuf;
-        stat(currentDirEntry->d_name, &stbuf);
-        char* path = realpath(currentDirEntry->d_name, NULL);
-        char* file = basename(currentDirEntry->d_name);
-
-        if (strcmp(file, "..") == 0 || strcmp(file, ".") == 0) {
-            skip = 1;
-        } else if ((currentDirEntry->d_type == DT_LNK &&
-                    !S_ISREG(stbuf.st_mode)) ||
-                   currentDirEntry->d_type != DT_REG) {
-            skip = 1;
-        }
-
-        if (currentDirEntry->d_type == DT_DIR || S_ISDIR(stbuf.st_mode)) {
-            if (strcmp(file, "..") != 0 && strcmp(file, ".") != 0) {
-                printDirContents(currentDirEntry);
-            }
-        }
-
-        if (skip == 0) {
-            const char* perms = sperm(stbuf.st_mode);
-            printf("%10.10s %10ldB %s \n", perms, stbuf.st_size, path);
-        }
-        free(path);
-    }
-
-    closedir(dir);
+void fun(const char* file, const struct stat* sb) {
+    const char* perms = strperm(sb->st_mode);
+    char date[24] = {0};
+    strftime(date, 24, "%Y-%m-%d %H:%M:%S", localtime(&sb->st_mtime));
+    printf("%10.10s %10ldB %s %s \n", perms, sb->st_size, date, file);
 }
 
 int main(int argc, char* argv[]) {
-    ProgramArguments programArgs;
 
     parseArguments(argc, argv, &programArgs);
 
     if (programArgs.mode == M_ODIR) {
-        printFiles(&programArgs);
+        char* path = realpath(programArgs.dirPath, NULL);
+        my_nftw(path, fun);
     }
 
     return 0;
