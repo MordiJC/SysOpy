@@ -10,6 +10,9 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <float.h>
+#include <math.h>
+#include <ftw.h>
 
 typedef enum { O_LT = 0, O_EQ, O_GT } OrderOperator;
 
@@ -151,7 +154,7 @@ void my_nftw(const char* dirpath,
         } else if (currentDirEntry->d_type == DT_DIR ||
                    S_ISDIR(stbuf.st_mode)) {
             my_nftw(filePath, fn);
-        } else if(S_ISREG(stbuf.st_mode)) {
+        } else if (S_ISREG(stbuf.st_mode)) {
             fn(filePath, &stbuf);
         }
 
@@ -162,21 +165,43 @@ void my_nftw(const char* dirpath,
 }
 
 ProgramArguments programArgs;
+time_t filterDate = 0;
 
 void fun(const char* file, const struct stat* sb) {
-    const char* perms = strperm(sb->st_mode);
-    char date[24] = {0};
-    strftime(date, 24, "%Y-%m-%d %H:%M:%S", localtime(&sb->st_mtime));
-    printf("%10.10s %10ldB %s %s \n", perms, sb->st_size, date, file);
+    double diff = difftime(filterDate, sb->st_mtime);
+
+    if ((programArgs.op == O_LT && diff > 0) ||
+        (programArgs.op == O_EQ && fabs(diff) <= DBL_EPSILON) ||
+        (programArgs.op == O_GT && diff < 0)) {
+        const char* perms = strperm(sb->st_mode);
+        char date[24] = {0};
+        struct tm* tme = localtime(&sb->st_mtime);
+        strftime(date, 24, "%Y-%m-%d %H:%M:%S", tme);
+        printf("%10.10s %10ldB %s %s \n", perms, sb->st_size, date, file);
+    }
+}
+
+static int
+display_info(const char *fpath, const struct stat *sb,
+             int tflag, struct FTW *ftwbuf)
+{
+    (void) ftwbuf;
+    if(tflag == FTW_F || (S_ISREG(sb->st_mode) && tflag == FTW_SL)) {
+        fun(fpath, sb);
+    }
+    return 0;           /* To tell nftw() to continue */
 }
 
 int main(int argc, char* argv[]) {
-
     parseArguments(argc, argv, &programArgs);
 
+    filterDate = mktime(&programArgs.date);
+    char* path = realpath(programArgs.dirPath, NULL);
+
     if (programArgs.mode == M_ODIR) {
-        char* path = realpath(programArgs.dirPath, NULL);
         my_nftw(path, fun);
+    } else if (programArgs.mode == M_NFTW) {
+        nftw(path, display_info, 64, FTW_DEPTH | FTW_SL);
     }
 
     return 0;
