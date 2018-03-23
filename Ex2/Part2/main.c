@@ -185,8 +185,11 @@ static int
 display_info(const char *fpath, const struct stat *sb,
              int tflag, struct FTW *ftwbuf)
 {
+    struct stat sbx;
+    stat(fpath, &sbx);
+
     (void) ftwbuf;
-    if(tflag == FTW_F || (S_ISREG(sb->st_mode) && tflag == FTW_SL)) {
+    if(tflag == FTW_F) {
         fun(fpath, sb);
     }
     return 0;           /* To tell nftw() to continue */
@@ -201,7 +204,7 @@ int main(int argc, char* argv[]) {
     if (programArgs.mode == M_ODIR) {
         my_nftw(path, fun);
     } else if (programArgs.mode == M_NFTW) {
-        nftw(path, display_info, 64, FTW_DEPTH | FTW_SL);
+        nftw(path, display_info, 64, FTW_DEPTH | FTW_PHYS);
     }
 
     return 0;
