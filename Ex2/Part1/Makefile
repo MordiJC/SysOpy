@@ -11,7 +11,7 @@ else ifeq ($(SANITIZER),UNDEFINED)
 
 SANITIZER_FLAGS = -fsanitize=address
 SANITIZER_LIBS = -lubsan
-
+	
 else ifeq ($(SANITIZER),LEAK)
 
 SANITIZER_FLAGS = -fsanitize=LEAK
@@ -68,6 +68,9 @@ test_clean:
 depend:
 	$(CC) -MM ./*.c
 
+print:
+	$(ECHO) "dupa\n"
+
 .PHONY: test_generate
 
 test_generate:
@@ -84,7 +87,7 @@ test_generate:
 	# for copying
 	./$(OUT) generate ./r_32768-l_4096.test_data 32768 4096
 	# 8192 bytes long records
-	./$(OUT) generate ./r_2048-l_8192.test_data 2048 8192
+	./$(OUT) generate ./r_4096-l_8192.test_data 4096 8192
 	# for copying
 	./$(OUT) generate ./r_32768-l_8192.test_data 32768 8192
 
@@ -101,8 +104,8 @@ test_copy:
 	./$(OUT) copy ./r_4096-l_4096.test_data ./r_4096-l_4096.lib.test_data 4096 4096 lib
 	./$(OUT) copy ./r_4096-l_4096.test_data ./r_4096-l_4096.sys.test_data 4096 4096 sys
 	# 8192 bytes long records
-	./$(OUT) copy ./r_2048-l_8192.test_data ./r_2048-l_8192.lib.test_data 2048 8192 lib
-	./$(OUT) copy ./r_2048-l_8192.test_data ./r_2048-l_8192.sys.test_data 2048 8192 sys
+	./$(OUT) copy ./r_4096-l_8192.test_data ./r_4096-l_8192.lib.test_data 4096 8192 lib
+	./$(OUT) copy ./r_4096-l_8192.test_data ./r_4096-l_8192.sys.test_data 4096 8192 sys
 
 	# Copy tests ("big" files)
 	# 4 bytes long records
@@ -128,8 +131,8 @@ test_sort:
 	./$(OUT) sort ./r_4096-l_512.sys.test_data 4096 512 sys
 	./$(OUT) sort ./r_4096-l_4096.lib.test_data 4096 4096 lib
 	./$(OUT) sort ./r_4096-l_4096.sys.test_data 4096 4096 sys
-	./$(OUT) sort ./r_2048-l_8192.lib.test_data 2048 8192 lib
-	./$(OUT) sort ./r_2048-l_8192.sys.test_data 2048 8192 sys
+	./$(OUT) sort ./r_4096-l_8192.lib.test_data 4096 8192 lib
+	./$(OUT) sort ./r_4096-l_8192.sys.test_data 4096 8192 sys
 
 .PHONY: test
 
