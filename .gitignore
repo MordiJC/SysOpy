@@ -8,3 +8,4 @@ cmake_install.cmake
 *.txt
 *.test_data
 *.zip
+*.lsh

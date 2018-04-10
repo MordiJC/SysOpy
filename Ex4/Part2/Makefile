@@ -46,23 +46,17 @@ ECHO = echo -e
 OUT = main
 CORE_O = main.o
 
-OUT_SP = main_sp
-CORE_SP_O = main_subprocess.o
-
 .PHONY: all
 
-all: $(OUT) $(OUT_SP)
+all: $(OUT)
 
 $(OUT): $(CORE_O)
-	$(CC) $? -o $@ $(LDFLAGS)
-
-$(OUT_SP): $(CORE_SP_O)
 	$(CC) $? -o $@ $(LDFLAGS)
 
 .PHONY: clean
 
 clean:
-	$(RM) ./*.o ./$(OUT) ./$(OUT_SP)
+	$(RM) ./*.o ./$(OUT)
 
 .PHONY: depend
 
