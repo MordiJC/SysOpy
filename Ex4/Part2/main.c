@@ -1,4 +1,4 @@
-#define _XOPEN_SOURCE
+#define _XOPEN_SOURCE 500
 #define _DEFAULT_SOURCE
 
 #include <signal.h>
@@ -8,6 +8,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/prctl.h>
 
 static int N = 0;
 static int M = 0;
@@ -40,9 +41,6 @@ void slaveRunner(void) {
 
     sleep(secs);
 
-    // union sigval sgv;
-    // sgv.sival_ptr = NULL;
-
     fprintf(stderr, "Sending to: %d\n", getppid());
 
     kill(getppid(), SIGUSR1);
@@ -51,19 +49,16 @@ void slaveRunner(void) {
         usleep(50);
     }
 
-    fprintf(stderr, "Hija\n");
+    fprintf(stderr, "Can Run %d\n", getpid());
 
-    fprintf(stderr, "PID: %d\n", getppid());
     kill(getppid(), randomInt(SIGRTMIN, SIGRTMAX));
-
-    fprintf(stderr, "Hija2\n");
 
     fprintf(stderr, "Exiting %d\n", secs);
 
     exit(secs);
 }
 
-void masterHandler(int signum, siginfo_t* info, void* data) {
+void master_handler(int signum, siginfo_t* info, void* data) {
     (void)data;
     int pid = info->si_pid;
     union sigval sgv;
@@ -83,6 +78,7 @@ void masterHandler(int signum, siginfo_t* info, void* data) {
 
     if (M_acc >= M) {
         sigqueue(pid, SIGUSR1, sgv);
+        return;
     }
 
     pidsRequests[idx]++;
@@ -107,7 +103,7 @@ void master_sigchld_handler(int signum) {
     int status = 0;
     pid_t chldpid = 0;
 
-    fprintf(stderr, "SIGCHLD!\n");;
+    fprintf(stderr, "SIGCHLD!\n");
 
     while (1) {
         chldpid = waitpid(-1, &status, WNOHANG);
@@ -124,37 +120,13 @@ void master_sigchld_handler(int signum) {
 }
 
 void masterRunner(void) {
-    signal(SIGCHLD, master_sigchld_handler);
-
-    struct sigaction sa;
-    sa.sa_sigaction = master_sigrt_handler;
-    sigemptyset(&sa.sa_mask);
-
-    for (int i = SIGRTMIN; i <= SIGRTMAX; ++i) {
-        sigaction(i, &sa, NULL);
-    }
-
-    sa.sa_sigaction = masterHandler;
-    sigaction(SIGUSR1, &sa, NULL);
-
     fprintf(stderr, "Starting master %d\n", getpid());
 
-    // while (dead != N) {
-    //     usleep(50);
-    // }
-
     int pppid;
-    while ((pppid = waitpid(-1, NULL, 0)) > 0) {
-        fprintf(stderr, "Died: %d\n", pppid);
+    while((pppid = waitpid(-1, NULL, 0)) > 0) {
+
     }
-
-    fprintf(stderr, "Is that all?\n");
 }
-
-void ate(void) {
-    fprintf(stderr, "DUPA\n");
-}
-
 int main(int argc, char* argv[]) {
     if (argc < 3) {
         fprintf(stderr, "Not enouogh arguments.\n");
@@ -174,6 +146,19 @@ int main(int argc, char* argv[]) {
 
     fprintf(stderr, "N = %d\nM = %d\n", N, M);
 
+    signal(SIGCHLD, master_sigchld_handler);
+
+    struct sigaction sa;
+    sa.sa_sigaction = master_sigrt_handler;
+    sigemptyset(&sa.sa_mask);
+
+    for (int i = SIGRTMIN; i <= SIGRTMAX; ++i) {
+        sigaction(i, &sa, NULL);
+    }
+
+    sa.sa_sigaction = master_handler;
+    sigaction(SIGUSR1, &sa, NULL);
+
     for (int i = 0; i < N; ++i) {
         pidsArr[i] = fork();
 
@@ -184,8 +169,6 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "Failed to fork process.\n");
             exit(1);
         }
-
-        usleep(50);
     }
 
     masterRunner();
