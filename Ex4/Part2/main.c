@@ -19,23 +19,25 @@ static int dead = 0;
 
 int canRun = 0;
 
-int randomInt(int min_number, int max_number) {
+int random_int(int min_number, int max_number) {
     return (rand() % (max_number + 1 - min_number) + min_number);
 }
 
-void slaveHandler(int signum) {
+void slave_handler(int signum) {
     if (signum == SIGUSR1 && canRun == 0) {
         fprintf(stderr, "Can Go\n");
         canRun = 1;
     }
 }
 
-void slaveRunner(void) {
-    srand(time(NULL));
+void slave_runner(void) {
+    srand((time(NULL) + clock()) % getpid());
 
-    signal(SIGUSR1, slaveHandler);
+    signal(SIGUSR1, slave_handler);
 
     int secs = rand() % 10 + 1;
+    union sigval siv;
+    siv.sival_int = 0;
 
     fprintf(stderr, "FromSlave: Secs = %d\n", secs);
 
@@ -43,7 +45,7 @@ void slaveRunner(void) {
 
     fprintf(stderr, "Sending to: %d\n", getppid());
 
-    kill(getppid(), SIGUSR1);
+    sigqueue(getppid(), SIGUSR1, siv);
 
     while (canRun == 0) {
         usleep(50);
@@ -51,7 +53,7 @@ void slaveRunner(void) {
 
     fprintf(stderr, "Can Run %d\n", getpid());
 
-    kill(getppid(), randomInt(SIGRTMIN, SIGRTMAX));
+    sigqueue(getppid(), random_int(SIGRTMIN, SIGRTMAX), siv);
 
     fprintf(stderr, "Exiting %d\n", secs);
 
@@ -67,7 +69,7 @@ void master_handler(int signum, siginfo_t* info, void* data) {
     printf("PROCESS: %d SIGNAL %d\n", pid, signum);
 
     int idx = -1;
-    for (int i = 0; i < 10; ++i) {
+    for (int i = 0; i < N; ++i) {
         if (pidsArr[i] == pid) {
             idx = i;
             break;
@@ -77,6 +79,7 @@ void master_handler(int signum, siginfo_t* info, void* data) {
     if (idx == -1) return;
 
     if (M_acc >= M) {
+        fprintf(stderr, "Allowing process %d to send SIGRTs\n", pid);
         sigqueue(pid, SIGUSR1, sgv);
         return;
     }
@@ -98,8 +101,10 @@ void master_sigrt_handler(int signum, siginfo_t* info, void* data) {
     fprintf(stderr, "PROCESS: %d, SIGNAL: RT %d\n", info->si_pid, signum);
 }
 
-void master_sigchld_handler(int signum) {
+void master_sigchld_handler(int signum, siginfo_t* info, void* data) {
     (void)signum;
+    (void)info;
+    (void)data;
     int status = 0;
     pid_t chldpid = 0;
 
@@ -119,14 +124,21 @@ void master_sigchld_handler(int signum) {
     }
 }
 
-void masterRunner(void) {
+void sigint_handler(int signum) {
+    fprintf(stderr, "Terminating SIGNUM: %d\n", signum);
+}
+
+void master_runner(void) {
     fprintf(stderr, "Starting master %d\n", getpid());
 
-    int pppid;
-    while((pppid = waitpid(-1, NULL, 0)) > 0) {
-
+    int ppid;
+    while((ppid = wait(NULL)) > 0) {
+        fprintf(stderr, "[!!!] Process terminated: %d\n", ppid);
     }
+
+    fprintf(stderr, "Finnished\n");
 }
+
 int main(int argc, char* argv[]) {
     if (argc < 3) {
         fprintf(stderr, "Not enouogh arguments.\n");
@@ -146,32 +158,46 @@ int main(int argc, char* argv[]) {
 
     fprintf(stderr, "N = %d\nM = %d\n", N, M);
 
-    signal(SIGCHLD, master_sigchld_handler);
-
     struct sigaction sa;
+    sa.sa_sigaction = master_sigchld_handler;
+    sa.sa_flags = SA_RESTART | SA_NOCLDSTOP | SA_SIGINFO;
+
+    if(sigaction(SIGCHLD, &sa, NULL) != 0) {
+        fprintf(stderr, "Failed to register SIGCHLD handler\n");
+        exit(1);
+    }
+
     sa.sa_sigaction = master_sigrt_handler;
     sigemptyset(&sa.sa_mask);
 
     for (int i = SIGRTMIN; i <= SIGRTMAX; ++i) {
-        sigaction(i, &sa, NULL);
+        if(sigaction(i, &sa, NULL) != 0) {
+            fprintf(stderr, "Failed to register SIGRT %d handler\n", i);
+            exit(1);
+        }
     }
 
     sa.sa_sigaction = master_handler;
-    sigaction(SIGUSR1, &sa, NULL);
+    if(sigaction(SIGUSR1, &sa, NULL) != 0) {
+        fprintf(stderr, "Failed to register SIGUSR1 handler\n");
+        exit(1);
+    }
 
     for (int i = 0; i < N; ++i) {
         pidsArr[i] = fork();
 
         if (pidsArr[i] == 0) {
-            slaveRunner();
+            slave_runner();
             exit(0);
         } else if (pidsArr[i] < 0) {
             fprintf(stderr, "Failed to fork process.\n");
             exit(1);
+        } else if(pidsArr[i] > 0) {
+            fprintf(stderr, "Child process created: %d\n", pidsArr[i]);
         }
     }
 
-    masterRunner();
+    master_runner();
 
     free(pidsArr);
     free(pidsRequests);
