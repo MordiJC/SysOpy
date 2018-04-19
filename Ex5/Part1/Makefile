@@ -48,12 +48,9 @@ CORE_O = main.o
 
 .PHONY: all
 
-all: $(OUT) $(OUT_SP)
+all: $(OUT)
 
 $(OUT): $(CORE_O)
-	$(CC) $? -o $@ $(LDFLAGS)
-
-$(OUT_SP): $(CORE_SP_O)
 	$(CC) $? -o $@ $(LDFLAGS)
 
 .PHONY: clean
