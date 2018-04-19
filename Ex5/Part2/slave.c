@@ -5,10 +5,17 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <time.h>
 
 #define LINE_LEN_MAX 1024
 
+int random_int(int min_number, int max_number) {
+    return (rand() % (max_number + 1 - min_number) + min_number);
+}
+
 int main(int argc, char* argv[]) {
+
+    srand(time(NULL));
     if (argc < 3) {
         fprintf(stderr, "Not enough arguments\n");
         exit(EXIT_FAILURE);
@@ -33,6 +40,8 @@ int main(int argc, char* argv[]) {
         memset(line, 0, LINE_LEN_MAX);
         sprintf(line, "%d %s\n", myPid, dateBuf);
         write(fifo, line, strlen(line));
+
+        sleep(random_int(1, 5));
     }
 
     close(fifo);
