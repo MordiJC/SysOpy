@@ -14,7 +14,7 @@ SANITIZER_LIBS = -lubsan
 
 else ifeq ($(SANITIZER),LEAK)
 
-SANITIZER_FLAGS = -fsanitize=LEAK
+SANITIZER_FLAGS = -fsanitize=leak
 SANITIZER_LIBS = 
 
 endif
