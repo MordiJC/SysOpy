@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #define MSG_MAX_BODY_SIZE 2048
+#define MAX_CLIENTS 10
 
 typedef enum {
     LOGIN = 0u,
@@ -38,5 +39,7 @@ int systemv_queue_send_message(int queue_id, MessageType type, pid_t pid,
 int systemv_queue_create(key_t key, int flags);
 
 int systemv_queue_close(int queue_id);
+
+const char * getErrorMessage();
 
 #endif /* QIO_H_ */

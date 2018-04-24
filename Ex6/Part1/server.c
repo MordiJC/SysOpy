@@ -21,28 +21,28 @@
 int shouldClose = 0;
 
 void loginClient(QueueMessageHead_t* msg_head,
-                    QueueMessageBodyUnit_t* msg_body) {
-                        (void)msg_head;
-                        (void)msg_body;
-                    }
+                 QueueMessageBodyUnit_t* msg_body) {
+    (void)msg_head;
+    (void)msg_body;
+}
 
 void executeMessage(QueueMessageHead_t* msg_head,
                     QueueMessageBodyUnit_t* msg_body) {
-    if(msg_head == NULL) return;
+    if (msg_head == NULL) return;
 
-    switch(msg_head->type) {
-    case LOGIN:
-        loginClient(msg_head, msg_body);
-        break;
-    case MIRROR:
-    case CALC:
-    case TIME:
-        break;
-    case END:
-        shouldClose = 1;
-        break;
-    default:
-        break;
+    switch (msg_head->type) {
+        case LOGIN:
+            loginClient(msg_head, msg_body);
+            break;
+        case MIRROR:
+        case CALC:
+        case TIME:
+            break;
+        case END:
+            shouldClose = 1;
+            break;
+        default:
+            break;
     }
 }
 
@@ -87,6 +87,10 @@ int createQueue(key_t key) {
     return qid;
 }
 
+int queueToRemove = -1;
+
+void remove_queue_at_exit() { systemv_queue_close(queueToRemove); }
+
 int main(void) {
     char* HOME_VAR = getenv("HOME");
 
@@ -101,6 +105,9 @@ int main(void) {
     }
 
     int queueId = createQueue(queueKey);
+    queueToRemove = queueId;
+
+    atexit(remove_queue_at_exit);
 
     mainServerLoop(queueId);
 
