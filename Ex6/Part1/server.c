@@ -127,9 +127,31 @@ void mirrorClient(QueueMessage_t* msg) {
     }
 }
 
-void calcClient(QueueMessage_t* msg) { (void)msg; }
+#define LINE_LEN_MAX 2048
 
-#define LINE_LEN_MAX 1024
+void calcClient(QueueMessage_t* msg) {
+    assert(msg != NULL);
+
+    int qid = getClientQidByPid(msg->pid);
+
+    if (qid == -1 || msg->size == 0) {
+        EXIT_WITH_ERROR(1, "Malformed message");
+    }
+
+    char dateBuf[LINE_LEN_MAX];
+    char command[LINE_LEN_MAX + 13];
+
+    sprintf(command, "echo '%s' | bc", msg->data);
+
+    FILE* date = popen(command, "r");
+    fgets(dateBuf, LINE_LEN_MAX, date);
+    pclose(date);
+
+    if (systemv_queue_send_message(qid, TIME, getpid(), strlen(dateBuf) + 1,
+                                   dateBuf) != 0) {
+        EXIT_WITH_ERROR(1, systemv_get_error_message());
+    }
+}
 
 void timeClient(QueueMessage_t* msg) {
     assert(msg != NULL);
