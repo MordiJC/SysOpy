@@ -10,36 +10,36 @@
 #define MAX_CLIENTS 10
 
 typedef enum {
-    LOGIN = 0u,
+    LOGIN = 1u,
+    LOGOUT,
     MIRROR,
     CALC,
     TIME,
     END,
+    CONNECTION_ACCEPTED,
+    CONNECTION_REFUSED,
 } MessageType;
 
 typedef struct {
-    MessageType type;
+    long type;
     pid_t pid;
-    int bodySize;
-} QueueMessageHead_t;
+    int size;
+    char data[MSG_MAX_BODY_SIZE];
+} QueueMessage_t;
 
-typedef char QueueMessageBodyUnit_t;
-typedef char QueueMessageBodyUnitPtr_t;
-
-static const size_t QueueMessageHeadSize = sizeof(QueueMessageHead_t);
+static const size_t QueueMessageSize = sizeof(QueueMessage_t) - sizeof(long);
 
 /* FUNCTION DEFINITIONS */
 
-int systemv_queue_receive_message(int queue_id, QueueMessageHead_t *msg_head,
-                                  QueueMessageBodyUnit_t *msg_body);
+int systemv_queue_receive_message(int queue_id, QueueMessage_t *msg_head);
 
 int systemv_queue_send_message(int queue_id, MessageType type, pid_t pid,
-                               size_t data_size, QueueMessageBodyUnit_t *src);
+                               size_t data_size, char *src);
 
 int systemv_queue_create(key_t key, int flags);
 
 int systemv_queue_close(int queue_id);
 
-const char * getErrorMessage();
+const char *systemv_get_error_message(void);
 
 #endif /* QIO_H_ */
