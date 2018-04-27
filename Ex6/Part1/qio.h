@@ -9,6 +9,10 @@
 #define MSG_MAX_BODY_SIZE 2048
 #define MAX_CLIENTS 10
 
+#define PROJECT_ID 420
+
+#define LINE_LEN_MAX 2048
+
 typedef enum {
     LOGIN = 1u,
     LOGOUT,
@@ -31,7 +35,7 @@ static const size_t QueueMessageSize = sizeof(QueueMessage_t) - sizeof(long);
 
 /* FUNCTION DEFINITIONS */
 
-int systemv_queue_receive_message(int queue_id, QueueMessage_t *msg_head);
+int systemv_queue_receive_message(int queue_id, QueueMessage_t *msg);
 
 int systemv_queue_send_message(int queue_id, MessageType type, pid_t pid,
                                size_t data_size, char *src);

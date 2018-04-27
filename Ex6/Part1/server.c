@@ -4,15 +4,14 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <string.h>
+#include <signal.h>
 
 #include "qio.h"
-
-#define PROJECT_ID 420
 
 #define EXIT_WITH_ERROR(code, msg)      \
     {                                   \
@@ -127,8 +126,6 @@ void mirrorClient(QueueMessage_t* msg) {
     }
 }
 
-#define LINE_LEN_MAX 2048
-
 void calcClient(QueueMessage_t* msg) {
     assert(msg != NULL);
 
@@ -205,12 +202,14 @@ void mainServerLoop(int queueId) {
 
     struct msqid_ds state;
 
-    while (shouldClose == 0) {  // TODO: handle all requests before leaving!
+    while (1) {  // TODO: handle all requests before leaving!
         if (msgctl(queueId, IPC_STAT, &state) == -1) {
             EXIT_WITH_ERROR(1, "Failed to get current state of public queue");
         }
 
-        // if(state.msg_qnum == 0) break; /* No messages to process. Quitting */
+        if (state.msg_qnum == 0 && shouldClose == 1) {
+            break; /* No messages to process. Quitting */
+        }
 
         if (systemv_queue_receive_message(queueId, &message)) {
             EXIT_WITH_ERROR(1, systemv_get_error_message());
@@ -222,7 +221,16 @@ void mainServerLoop(int queueId) {
 
 int queueToRemove = -1;
 
-void remove_queue_at_exit(void) { systemv_queue_close(queueToRemove); }
+void remove_queue_at_exit(void) { 
+    if(queueToRemove != -1) {
+        systemv_queue_close(queueToRemove); 
+    }
+}
+
+void sig_int_handler(int signum) {
+    (void) signum;
+    exit(2);
+}
 
 int main(void) {
     char* HOME_VAR = getenv("HOME");
@@ -247,6 +255,8 @@ int main(void) {
     }
 
     atexit(remove_queue_at_exit);
+
+    signal(SIGINT, sig_int_handler);
 
     mainServerLoop(queueId);
 
