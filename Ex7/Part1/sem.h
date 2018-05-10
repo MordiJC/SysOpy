@@ -16,7 +16,7 @@ union semun {
 
 void semaphore_init(int sid, int semnum, int initval);
 
-int semaphore_create(int semnum);
+int semaphore_create(int semnum, int id);
 
 int semaphore_signal(int sid, int semnum);
 

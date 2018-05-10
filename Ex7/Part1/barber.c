@@ -16,7 +16,7 @@
 
 int sid = -1;
 int mid = -1;
-void *shm_ptr = NULL;
+void *shm_ptr = -1;
 
 void sigterm_handler(int signum) {
     (void)signum;
@@ -25,7 +25,7 @@ void sigterm_handler(int signum) {
         semaphore_remove(sid);
     }
 
-    if (shm_ptr != (void*)-1) {
+    if (shm_ptr != (void *)-1) {
         sharedmem_unmap(shm_ptr);
     }
 
@@ -43,8 +43,10 @@ void runBarbershop(int seats) {
 
     struct timespec ts;
     Queue_t *queue = NULL;
+    BarberQueueElement_t clientData = {0, 0};
+
     {
-        sid = semaphore_create(BarberSemaphoresNum);
+        sid = semaphore_create(BarberSemaphoresNum, PROJECT_ID);
         /*
          * [0] => barberReady    = 1
          * [1] => accessSeats    = 0
@@ -61,7 +63,7 @@ void runBarbershop(int seats) {
         semaphore_init(sid, semHaircut, 0);
     }
     {
-        mid = sharedmem_create(sizeof(Queue_t) + (sizeof(int) * (seats + 1)));
+        mid = sharedmem_create(sizeof(Queue_t) + (sizeof(BarberQueueElement_t) * (seats + 1)));
 
         if (mid == -1) {
             EXIT_WITH_MSG(2, "Failed to create shared memory");
@@ -74,7 +76,8 @@ void runBarbershop(int seats) {
         }
 
         queue = shm_ptr;
-        queue_init(queue, (void*)((char*)shm_ptr + sizeof(Queue_t)), (seats + 1), sizeof(int));
+        queue_init(queue, (void *)((char *)shm_ptr + sizeof(Queue_t) + sizeof(BarberQueueElement_t)),
+                   (seats + 1), sizeof(BarberQueueElement_t));
     }
 
     while (true) {
@@ -97,17 +100,26 @@ void runBarbershop(int seats) {
         }
 
         // TODO: GET CUSTOMER FROM FIFO
+        if (!queue_dequeue(queue, &clientData)) {
+            EXIT_WITH_MSG(3, "No clients available in queue but barber awaken");
+        }
 
         semaphore_signal(sid, semBarberReady);
         semaphore_signal(sid, semAccessSeats);
 
-        semaphore_signal(sid, semHaircut);
+        semaphore_signal(sid, semHaircut); // SHOULD I REMOVE THIS?
 
-        clock_gettime(CLOCK_MONOTONIC, &ts);
-        printf("[%ld.%lds] Cutting hair <PID_HERE>!\n", ts.tv_sec, ts.tv_nsec);
+        if(kill(clientData.pid, 0) != 0) {
+            semaphore_signal(clientData.sid, 0);
 
-        clock_gettime(CLOCK_MONOTONIC, &ts);
-        printf("[%ld.%lds] Haircut done <PID_HERE>!\n", ts.tv_sec, ts.tv_nsec);
+            clock_gettime(CLOCK_MONOTONIC, &ts);
+            printf("[%ld.%lds] Cutting hair <%d>!\n", ts.tv_sec, ts.tv_nsec,
+                clientData.pid);
+
+            clock_gettime(CLOCK_MONOTONIC, &ts);
+            printf("[%ld.%lds] Haircut done <%d>!\n", ts.tv_sec, ts.tv_nsec,
+                clientData.pid);
+        }
 
         if (semaphore_getLocks(sid, semAccessSeats) != 0) {
             int locksNum = semaphore_getLocks(sid, semHaircut);

@@ -23,9 +23,9 @@ void semaphore_init(int sid, int semnum, int initval) {
     semctl(sid, semnum, SETVAL, semopts);
 }
 
-int semaphore_create(int semnum) {
+int semaphore_create(int semnum, int id) {
     char *home = getenv("HOME");
-    key_t key = ftok(home, PROJECT_ID);
+    key_t key = ftok(home, id);
 
     int sid = open_semaphore_set(key, semnum);
 

@@ -5,34 +5,86 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "defines.h"
 #include "sem.h"
+#include "shm.h"
+#include "queue.h"
 
-int getFreeSeats(void) { return 0; }
+int sid = -1;
+int clientSem = -1;
+int mid = -1;
+void * shm_ptr = -1;
+
+void sigterm_handler(int signum) {
+    (void)signum;
+
+    if (clientSem != -1) {
+        semaphore_remove(clientSem);
+    }
+
+    if (shm_ptr != (void *)-1) {
+        sharedmem_unmap(shm_ptr);
+    }
+
+    exit(EXIT_SUCCESS);
+}
+
+void atexit_cleanup(void) { sigterm_handler(0); }
 
 void sendClientForHaircuts(int haircuts) {
-    int sid = semaphore_create(BarberSemaphoresNum);
+    sid = semaphore_create(BarberSemaphoresNum, PROJECT_ID);
     struct timespec ts;
     pid_t pid = getpid();
+    Queue_t * queue = NULL;
+
+    {
+        clientSem = semaphore_create(1, getpid());
+
+        if (clientSem == -1) {
+            EXIT_WITH_MSG(2, "Failed to create semaphore")
+        }
+    }
+
+    {
+        mid = sharedmem_create(0);
+
+        if (mid == -1) {
+            EXIT_WITH_MSG(2, "Failed to create shared memory");
+        }
+
+        shm_ptr = sharedmem_map(mid);
+
+        if (shm_ptr == (void *)-1) {
+            EXIT_WITH_MSG(2, "Failed to map");
+        }
+
+        queue = shm_ptr;
+    }
 
     for (int i = 0; i < haircuts; ++i) {
+        semaphore_init(clientSem, 0, 1);
+
         if (semaphore_getLocks(sid, semAccessSeats) != 0) {
             semaphore_wait(sid, semAccessSeats);
             semaphore_waitForZero(sid, semAccessSeats);
         }
 
-        // TODO: PRzerobić pod siadanie od razu na krześle, jeżeli nie ma innych
+        // TODO: Przerobić pod siadanie od razu na krześle, jeżeli nie ma innych
         // klientów
-        if (getFreeSeats() > 0) {
+
+        if (!queue_isFull(queue)) {
             clock_gettime(CLOCK_MONOTONIC, &ts);
             printf("[%ld.%lds] [%d] Taking seat\n", ts.tv_sec, ts.tv_nsec, pid);
-            takeSeat();
+            {
+                // Take seat
+                
+            }
 
-            semaphore_signal(sid, semCustomersReady);
             semaphore_signal(sid, semAccessSeats);
+            semaphore_signal(sid, semCustomersReady);
 
             if (semaphore_getLocks(sid, semAccessSeats) != 0) {
                 semaphore_wait(sid, semAccessSeats);
@@ -46,8 +98,8 @@ void sendClientForHaircuts(int haircuts) {
             semaphore_waitForZero(sid, semHaircut);
 
             clock_gettime(CLOCK_MONOTONIC, &ts);
-            printf("[%ld.%lds] [%d] Leaving with haircut done\n", ts.tv_sec, ts.tv_nsec,
-                   pid);
+            printf("[%ld.%lds] [%d] Leaving with haircut done\n", ts.tv_sec,
+                   ts.tv_nsec, pid);
 
         } else {
             semaphore_signal(sid, semAccessSeats);
@@ -70,7 +122,8 @@ pid_t createClient(int haircuts) {
             sendClientForHaircuts(haircuts);
             exit(EXIT_SUCCESS);
             break;
-        default: break;
+        default:
+            break;
     }
 
     return pid;
@@ -104,6 +157,10 @@ int main(int argc, char *argv[]) {
 
     assert(clients > 0);
     assert(haircuts > 0);
+
+    signal(SIGTERM, sigterm_handler);
+
+    atexit(atexit_cleanup);
 
     runClients(clients, haircuts);
 
