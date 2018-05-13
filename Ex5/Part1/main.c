@@ -220,7 +220,7 @@ int executeFile(const char * filePath, char ** error) {
                 if (i != 0) {
                     close(pipes[(i + 1) % 2][1]);
                     if (dup2(pipes[(i + 1) % 2][0], STDIN_FILENO) < 0) {
-                        close(EXIT_FAILURE);
+                        exit(EXIT_FAILURE);
                     }
                 }
 
