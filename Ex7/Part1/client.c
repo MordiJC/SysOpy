@@ -39,7 +39,7 @@ void sendClientForHaircuts(int haircuts) {
     struct timespec ts;
     pid_t pid = getpid();
     BarberChair_t * chair = NULL;
-    Queue_t * queue = NULL;
+    Queue_t queue;
 
     {
         clientSem = semaphore_create(ClientSemaphoresNum, getpid());
@@ -63,7 +63,9 @@ void sendClientForHaircuts(int haircuts) {
         }
 
         chair = shm_ptr;
-        queue = (Queue_t *)((char*)shm_ptr + sizeof(BarberChair_t));
+
+        queue.info = (void *)((char *)shm_ptr + sizeof(BarberChair_t));
+        queue.mem = (void *)((char *)shm_ptr + sizeof(BarberChair_t)+ sizeof(QueueInfo_t));
     }
 
     for (int i = 0; i < haircuts; ++i) {
@@ -93,7 +95,7 @@ void sendClientForHaircuts(int haircuts) {
                 semaphore_waitForZero(sid, semWaitingRoom);
             }
             
-            if(queue_isFull(queue)) {
+            if(queue_isFull(&queue)) {
                 semaphore_signal(sid, semWaitingRoom);
 
                 clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -102,8 +104,12 @@ void sendClientForHaircuts(int haircuts) {
                 continue; // Continue loop
             }
 
+            clock_gettime(CLOCK_MONOTONIC, &ts);
+            printf("[%ld.%lds] [%d] Taking seat in waiting room.\n", ts.tv_sec,
+                    ts.tv_nsec, pid);
+
             BarberClientInfo_t bci = {pid};
-            queue_enqueue(queue, &bci);
+            queue_enqueue(&queue, &bci);
 
             semaphore_signal(sid, semWaitingRoom);
         }

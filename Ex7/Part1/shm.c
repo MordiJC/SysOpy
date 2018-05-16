@@ -8,7 +8,7 @@
 int open_segment(key_t keyval, int segsize) {
     int shmid;
 
-    if ((shmid = shmget(keyval, segsize, IPC_CREAT | 0660)) == -1) {
+    if ((shmid = shmget(keyval, segsize, IPC_CREAT | 0666)) == -1) {
         return (-1);
     }
 

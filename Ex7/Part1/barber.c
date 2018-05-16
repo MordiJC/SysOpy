@@ -76,7 +76,7 @@ void handle_client(BarberClientInfo_t currentClient) {
 void runBarbershop(int seats) {
     (void)seats;
 
-    Queue_t *queue = NULL;
+    Queue_t queue;
     BarberChair_t * chair = NULL;
     BarberClientInfo_t currentClient = {0};
 
@@ -101,7 +101,7 @@ void runBarbershop(int seats) {
      * Shared memory initialization
      */
     {
-        mid = sharedmem_create(sizeof(BarberChair_t) + sizeof(Queue_t) + (sizeof(BarberClientInfo_t) * (seats + 1)));
+        mid = sharedmem_create(sizeof(BarberChair_t) + sizeof(QueueInfo_t) + (sizeof(BarberClientInfo_t) * (seats + 1)));
 
         if (mid == -1) {
             EXIT_WITH_MSG(2, "Failed to create shared memory");
@@ -116,9 +116,11 @@ void runBarbershop(int seats) {
         chair = shm_ptr;
         chair->occupied = false;
 
-        queue = (Queue_t *)((char*)shm_ptr + sizeof(BarberChair_t));
-        queue_init(queue, (void *)((char *)shm_ptr + sizeof(BarberChair_t) + sizeof(Queue_t)),
-                   (seats + 1), sizeof(BarberClientInfo_t));
+        queue.info = (void *)((char *)shm_ptr + sizeof(BarberChair_t));
+        queue.mem = (void *)((char *)shm_ptr + sizeof(BarberChair_t)+ sizeof(QueueInfo_t));
+        queue.info->capacity = (seats + 1);
+        queue.info->element_size = sizeof(BarberClientInfo_t);
+        queue.info->elements = queue.info->head = queue.info->tail = 0;
     }
 
     printf("[INFO] Barber starting\n");
@@ -146,7 +148,7 @@ void runBarbershop(int seats) {
             semaphore_waitForZero(sid, semWaitingRoom);
         }
 
-        while(queue_dequeue(queue, &currentClient)) {
+        while(queue_dequeue(&queue, &currentClient)) {
             handle_client(currentClient);
         } /* end */ {
             chair->occupied = false;

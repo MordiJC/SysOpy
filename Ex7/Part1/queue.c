@@ -3,20 +3,21 @@
 
 #include <string.h>
 
-void queue_init(Queue_t* queue, void* address, int capacity, int element_size) {
-    queue->mem = address;
-    queue->capacity = capacity;
-    queue->element_size = element_size;
-    queue->head = 0;
-    queue->tail = 0;
-    queue->elements = 0;
-}
+// void queue_init(Queue_t* queue, void* address, QueueInfo_t qi) {
+//     queue->mem = address;
+//     queue->info = qi;
+//     // queue->capacity = capacity;
+//     // queue->element_size = element_size;
+//     // queue->head = 0;
+//     // queue->tail = 0;
+//     // queue->elements = 0;
+// }
 
 bool queue_isFull(Queue_t* queue) {
     if (queue == NULL) return false;
 
-    if ((queue->head % queue->capacity) ==
-        ((queue->tail + 1) % queue->capacity)) {
+    if ((queue->info->head % queue->info->capacity) ==
+        ((queue->info->tail + 1) % queue->info->capacity)) {
         return true;
     }
 
@@ -26,7 +27,7 @@ bool queue_isFull(Queue_t* queue) {
 bool queue_isEmpty(Queue_t* queue) {
     if (queue == NULL) return true;
 
-    if (queue->head == queue->tail) {
+    if (queue->info->head == queue->info->tail) {
         return true;
     }
 
@@ -42,14 +43,14 @@ bool queue_enqueue(Queue_t* queue, void* element) {
         return false;  // FULL
     }
 
-    void * dest = ((char*)queue->mem + queue->tail * queue->element_size);
+    void * dest = ((char*)queue->mem + queue->info->tail * queue->info->element_size);
 
     memcpy(dest, element,
-           queue->element_size);
+           queue->info->element_size);
 
-    queue->tail = (queue->tail + 1) % queue->capacity;
+    queue->info->tail = (queue->info->tail + 1) % queue->info->capacity;
 
-    queue->elements++;
+    queue->info->elements++;
 
     return true;
 }
@@ -59,13 +60,13 @@ bool queue_dequeue(Queue_t* queue, void * dest) {
         return false;
     }
 
-    void* element = ((char*)queue->mem + queue->head * queue->element_size);
+    void* element = ((char*)queue->mem + queue->info->head * queue->info->element_size);
 
-    queue->head = (queue->head + 1) % queue->capacity;
+    queue->info->head = (queue->info->head + 1) % queue->info->capacity;
 
-    memcpy(dest, element, queue->element_size);
+    memcpy(dest, element, queue->info->element_size);
 
-    queue->elements--;
+    queue->info->elements--;
     
     return true;
 }
