@@ -33,12 +33,12 @@ int semaphore_create(int semnum, int id) {
 }
 
 int semaphore_signal(int sid, int semnum) {
-    struct sembuf sem_lock = {semnum, -1, IPC_NOWAIT};
+    struct sembuf sem_lock = {semnum, 1, IPC_NOWAIT};
     return semop(sid, &sem_lock, 1);
 }
 
 int semaphore_wait(int sid, int semnum) {
-    struct sembuf sem_unlock = {semnum, 1, IPC_NOWAIT};
+    struct sembuf sem_unlock = {semnum, -1, 0};
     return semop(sid, &sem_unlock, 1);
 }
 
