@@ -9,7 +9,7 @@ SANITIZER_LIBS = -lasan
 
 else ifeq ($(SANITIZER),UNDEFINED)
 
-SANITIZER_FLAGS = -fsanitize=address
+SANITIZER_FLAGS = -fsanitize=undefined
 SANITIZER_LIBS = -lubsan
 
 else ifeq ($(SANITIZER),LEAK)
