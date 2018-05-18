@@ -11,7 +11,7 @@
 enum BarberSemaphores {
     semChair = 0u, //< Barber chair
     semWaitingRoom = 1u, //< Queue
-    semCustomerReady= 2u,
+    semChairWrite = 2u,
     BarberSemaphoresNum,
 };
 

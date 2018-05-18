@@ -42,10 +42,10 @@ void barber_sleep(int semid, int semIdx) {
     struct timespec ts;
 
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    printf("[%ld.%lds] Barber falling asleep.\n", ts.tv_sec, ts.tv_nsec);
+    printf("[%ld.%lds] Barber falling asleep With semaphore state: %d.\n",
+           ts.tv_sec, ts.tv_nsec, semaphore_getLocks(semid, semIdx));
 
     semaphore_wait(semid, semIdx);
-    semaphore_waitForZero(semid, semIdx);
 
     clock_gettime(CLOCK_MONOTONIC, &ts);
     printf("[%ld.%lds] Barber woke up.\n", ts.tv_sec, ts.tv_nsec);
@@ -79,11 +79,10 @@ void handle_client(BarberClientInfo_t currentClient) {
 }
 
 void runBarbershop(int seats) {
-    (void)seats;
-
     Queue_t queue;
     BarberChair_t *chair = NULL;
     BarberClientInfo_t currentClient = {0};
+    struct timespec ts;
 
     /*
      * Semaphores initialization
@@ -98,8 +97,9 @@ void runBarbershop(int seats) {
             EXIT_WITH_MSG(2, "Failed to create semaphore")
         }
 
-        semaphore_init(sid, semChair, 1);
-        semaphore_init(sid, semWaitingRoom, 0);
+        semaphore_init(sid, semChair, 0);
+        semaphore_init(sid, semWaitingRoom, 1);
+        semaphore_init(sid, semChairWrite, 1);
     }
 
     /*
@@ -130,36 +130,48 @@ void runBarbershop(int seats) {
         queue.info->elements = queue.info->head = queue.info->tail = 0;
     }
 
-    printf("[INFO] Barber starting\n");
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    printf("[%ld.%lds] Barber starting <%d>\n", ts.tv_sec, ts.tv_nsec,
+           getpid());
 
     while (true) {
         barber_sleep(sid, semChair);  // Sleep till chair will be occupied
 
         if (chair->occupied == true) {
+            semaphore_wait(sid, semChairWrite);
             currentClient = chair->clientInfo;
+            chair->occupied = false;
             // Handle client on the chair
-            printf("Getting client from chair.\n");
+            clock_gettime(CLOCK_MONOTONIC, &ts);
+            printf("[%ld.%lds] Getting client from chair\n", ts.tv_sec,
+                   ts.tv_nsec);
             handle_client(currentClient);
+            semaphore_signal(sid, semChairWrite);
 
         } else {
             if (semaphore_getLocks(sid, semChair) < 0) {
                 semaphore_signal(sid, semChair);
             }
-            printf("[INFO] Barber looping\n");
-            sleep(1);
-            continue;
         }
 
         // Now check queue.
-        printf("Checking queue.\n");
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        printf("[%ld.%lds] Checking queue\n", ts.tv_sec, ts.tv_nsec);
 
         if (semaphore_getLocks(sid, semWaitingRoom) != 0) {
             semaphore_wait(sid, semWaitingRoom);
             semaphore_waitForZero(sid, semWaitingRoom);
         }
 
-        while (queue_dequeue(&queue, &currentClient)) {
-            handle_client(currentClient);
+        while (true) {
+            if (queue_isEmpty(&queue) == false) {
+                queue_dequeue(&queue, &currentClient);
+                handle_client(currentClient);
+            } else {
+                clock_gettime(CLOCK_MONOTONIC, &ts);
+                printf("[%ld.%lds] Queue is empty\n", ts.tv_sec, ts.tv_nsec);
+                break;
+            }
         }
 
         chair->occupied = false;
@@ -169,6 +181,7 @@ void runBarbershop(int seats) {
         if (semaphore_getLocks(sid, semWaitingRoom) < 0) {
             semaphore_signal(sid, semWaitingRoom);
         }
+        // semaphore_signal(sid, semChairWrite);
     }
 }
 

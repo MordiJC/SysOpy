@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -32,15 +33,33 @@ void sigterm_handler(int signum) {
     exit(EXIT_SUCCESS);
 }
 
-void atexit_cleanup(void) { sigterm_handler(0); }
+void atexit_cleanup(void) {
+    fprintf(stderr, "Exitting\n");
+    sigterm_handler(0);
+}
+
+#define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_GREEN "\x1b[32m"
+#define ANSI_COLOR_YELLOW "\x1b[33m"
+#define ANSI_COLOR_BLUE "\x1b[94m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN "\x1b[36m"
+#define ANSI_COLOR_RESET "\x1b[0m"
+
+static const char *const colors[6] = {
+    ANSI_COLOR_RED,  ANSI_COLOR_GREEN,   ANSI_COLOR_YELLOW,
+    ANSI_COLOR_BLUE, ANSI_COLOR_MAGENTA, ANSI_COLOR_CYAN,
+};
 
 void sendClientForHaircuts(int haircuts) {
-    printf("[%d] Client started\n", getpid());
-    sid = semaphore_create(BarberSemaphoresNum, PROJECT_ID);
+    const char *color = colors[getpid() % 6];
     struct timespec ts;
     pid_t pid = getpid();
     BarberChair_t *chair = NULL;
     Queue_t queue;
+
+    printf("%s[%d] Client started.\033[0m\n", color, getpid());
+    sid = semaphore_create(BarberSemaphoresNum, PROJECT_ID);
 
     {
         clientSem = semaphore_create(ClientSemaphoresNum, getpid());
@@ -72,67 +91,82 @@ void sendClientForHaircuts(int haircuts) {
 
     for (int i = 0; i < haircuts; ++i) {
         clock_gettime(CLOCK_MONOTONIC, &ts);
-        printf("[%ld.%lds] [%d] Haircut no. %d\n", ts.tv_sec, ts.tv_nsec, pid,
-               i);
+        printf("%s[%ld.%lds] [%d] Haircut no. %d\033[0m\n", color, ts.tv_sec,
+               ts.tv_nsec, pid, i);
 
         semaphore_init(clientSem, semServiceBegin, -1);
         semaphore_init(clientSem, semServiceEnd, -1);
 
-        if (semaphore_getLocks(sid, semChair) != 0) {
-            semaphore_wait(sid, semChair);
-            semaphore_waitForZero(sid, semChair);
-        }
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        fprintf(stderr, "%s[%ld.%lds] [%d] Chair semaphore state: %d\033[0m\n",
+                color, ts.tv_sec, ts.tv_nsec, pid,
+                semaphore_getLocks(sid, semChair));
 
-        if (!chair->occupied) {
-            // occupy chair (we assume that chair is free if queue is empty)
+        // if (semaphore_getLocks(sid, semChair) != 0) {
+        // clock_gettime(CLOCK_MONOTONIC, &ts);
+        // fprintf(stderr, "[%ld.%lds] [%d] Waiting for chair to free\n",
+        //         ts.tv_sec, ts.tv_nsec, pid);
+        // semaphore_wait(sid, semChair);
+        // }
+        semaphore_wait(sid, semChairWrite);
+        if (chair->occupied == false) {
 
             clock_gettime(CLOCK_MONOTONIC, &ts);
-            printf("[%ld.%lds] [%d] Taking seat and waking barber.\n",
-                   ts.tv_sec, ts.tv_nsec, pid);
+            printf("%s[%ld.%lds] [%d] Taking seat and waking barber.\033[0m\n",
+                   color, ts.tv_sec, ts.tv_nsec, pid);
 
             chair->clientInfo.pid = pid;
             chair->clientInfo.sid = clientSem;
             chair->occupied = true;
-
             semaphore_signal(sid, semChair);
         } else {
-            semaphore_signal(sid, semChair);
-            
             if (semaphore_getLocks(sid, semWaitingRoom) != 0) {
+                clock_gettime(CLOCK_MONOTONIC, &ts);
+                printf(
+                    "%s[%ld.%lds] [%d] Waiting for access to waiting "
+                    "room.\033[0m\n",
+                    color, ts.tv_sec, ts.tv_nsec, pid);
                 semaphore_wait(sid, semWaitingRoom);
-                semaphore_waitForZero(sid, semWaitingRoom);
             }
 
             if (queue_isFull(&queue)) {
                 semaphore_signal(sid, semWaitingRoom);
 
                 clock_gettime(CLOCK_MONOTONIC, &ts);
-                printf("[%ld.%lds] [%d] Leaving without haircut.\n", ts.tv_sec,
-                       ts.tv_nsec, pid);
+                printf("%s[%ld.%lds] [%d] Leaving without haircut.\033[0m\n",
+                       color, ts.tv_sec, ts.tv_nsec, pid);
                 continue;  // Continue loop
             }
 
             clock_gettime(CLOCK_MONOTONIC, &ts);
-            printf("[%ld.%lds] [%d] Taking seat in waiting room.\n", ts.tv_sec,
-                   ts.tv_nsec, pid);
+            printf("%s[%ld.%lds] [%d] Taking seat in waiting room.\033[0m\n",
+                   color, ts.tv_sec, ts.tv_nsec, pid);
 
-            BarberClientInfo_t bci = {pid};
+            BarberClientInfo_t bci;
+            bci.pid = pid;
+            bci.sid = clientSem;
             queue_enqueue(&queue, &bci);
 
             semaphore_signal(sid, semWaitingRoom);
         }
 
+        semaphore_signal(sid, semChairWrite);
+
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        printf("%s[%ld.%lds] [%d] Waiting for haircut.\033[0m\n", color,
+               ts.tv_sec, ts.tv_nsec, pid);
+
         semaphore_wait(clientSem, semServiceBegin);
 
         clock_gettime(CLOCK_MONOTONIC, &ts);
-        printf("[%ld.%lds] [%d] Having haircut done.\n", ts.tv_sec, ts.tv_nsec,
-               pid);
+        printf("%s[%ld.%lds] [%d] Having haircut done.\033[0m\n", color,
+               ts.tv_sec, ts.tv_nsec, pid);
 
         semaphore_wait(clientSem, semServiceEnd);
 
         clock_gettime(CLOCK_MONOTONIC, &ts);
-        printf("[%ld.%lds] [%d] Leaving after having haircut done.\n",
-               ts.tv_sec, ts.tv_nsec, pid);
+        printf("%s[%ld.%lds] [%d] Leaving after having haircut done.\033[0m\n",
+               color, ts.tv_sec, ts.tv_nsec, pid);
     }
 }
 
@@ -160,6 +194,9 @@ void runClients(int clients, int haircuts) {
         createClient(haircuts);
     }
     sendClientForHaircuts(haircuts);
+    int status;
+    while (waitpid(0, &status, 0) != -1) {
+    }
 }
 
 int main(int argc, char *argv[]) {
