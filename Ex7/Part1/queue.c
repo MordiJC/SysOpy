@@ -43,12 +43,18 @@ bool queue_enqueue(Queue_t* queue, void* element) {
         return false;  // FULL
     }
 
-    void * dest = ((char*)queue->mem + queue->info->tail * queue->info->element_size);
+    void * dest = NULL;
+
+    if(queue_isEmpty(queue) && queue->info->chairOccupied == false) {
+        dest = queue->chair;
+        queue->info->chairOccupied = true;
+    } else {
+        dest = ((char*)queue->mem + queue->info->tail * queue->info->element_size);
+        queue->info->tail = (queue->info->tail + 1) % queue->info->capacity;
+    }
 
     memcpy(dest, element,
            queue->info->element_size);
-
-    queue->info->tail = (queue->info->tail + 1) % queue->info->capacity;
 
     queue->info->elements++;
 
@@ -56,17 +62,22 @@ bool queue_enqueue(Queue_t* queue, void* element) {
 }
 
 bool queue_dequeue(Queue_t* queue, void * dest) {
-    if(queue_isEmpty(queue)) {
+    if(queue->info->chairOccupied == true) {
+        memcpy(dest, queue->chair, queue->info->element_size);
+        queue->info->elements--;
+
+        if(queue_isEmpty(queue)) {
+            queue->info->chairOccupied = false;
+        } else {
+            void* element = ((char*)queue->mem + queue->info->head * queue->info->element_size);
+
+            queue->info->head = (queue->info->head + 1) % queue->info->capacity;
+
+            memcpy(queue->chair, element, queue->info->element_size);
+        }
+    } else {
         return false;
     }
-
-    void* element = ((char*)queue->mem + queue->info->head * queue->info->element_size);
-
-    queue->info->head = (queue->info->head + 1) % queue->info->capacity;
-
-    memcpy(dest, element, queue->info->element_size);
-
-    queue->info->elements--;
     
     return true;
 }

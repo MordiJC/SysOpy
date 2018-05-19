@@ -10,10 +10,12 @@ typedef struct QueueInfoStruct {
     int head;
     int tail;
     int elements;
+    bool chairOccupied;
 } QueueInfo_t;
 
 typedef struct QueueStruct {
     void* mem;
+    void* chair;
     QueueInfo_t * info;
 } Queue_t;
 

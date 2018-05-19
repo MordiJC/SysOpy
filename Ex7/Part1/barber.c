@@ -38,19 +38,6 @@ void sigterm_handler(int signum) {
 
 void atexit_cleanup(void) { sigterm_handler(0); }
 
-void barber_sleep(int semid, int semIdx) {
-    struct timespec ts;
-
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    printf("[%ld.%lds] Barber falling asleep With semaphore state: %d.\n",
-           ts.tv_sec, ts.tv_nsec, semaphore_getLocks(semid, semIdx));
-
-    semaphore_wait(semid, semIdx);
-
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    printf("[%ld.%lds] Barber woke up.\n", ts.tv_sec, ts.tv_nsec);
-}
-
 void handle_client(BarberClientInfo_t currentClient) {
     struct timespec ts;
     if (kill(currentClient.pid, 0) == 0) {
@@ -80,8 +67,7 @@ void handle_client(BarberClientInfo_t currentClient) {
 
 void runBarbershop(int seats) {
     Queue_t queue;
-    BarberChair_t *chair = NULL;
-    BarberClientInfo_t currentClient = {0};
+    BarberClientInfo_t currentClient = {0, 0};
     struct timespec ts;
 
     /*
@@ -97,17 +83,18 @@ void runBarbershop(int seats) {
             EXIT_WITH_MSG(2, "Failed to create semaphore")
         }
 
-        semaphore_init(sid, semChair, 0);
+        semaphore_init(sid, semBarber, 0);
         semaphore_init(sid, semWaitingRoom, 1);
-        semaphore_init(sid, semChairWrite, 1);
+        semaphore_init(sid, semWaitingRoomCheck, 1);
     }
 
     /*
      * Shared memory initialization
      */
     {
-        mid = sharedmem_create(sizeof(BarberChair_t) + sizeof(QueueInfo_t) +
-                               (sizeof(BarberClientInfo_t) * (seats + 1)));
+        mid =
+            sharedmem_create(sizeof(BarberClientInfo_t) + sizeof(QueueInfo_t) +
+                             (sizeof(BarberClientInfo_t) * (seats + 1)));
 
         if (mid == -1) {
             EXIT_WITH_MSG(2, "Failed to create shared memory");
@@ -119,15 +106,14 @@ void runBarbershop(int seats) {
             EXIT_WITH_MSG(2, "Failed to map");
         }
 
-        chair = shm_ptr;
-        chair->occupied = false;
-
-        queue.info = (void *)((char *)shm_ptr + sizeof(BarberChair_t));
-        queue.mem = (void *)((char *)shm_ptr + sizeof(BarberChair_t) +
+        queue.chair = shm_ptr;
+        queue.info = (void *)((char *)shm_ptr + sizeof(BarberClientInfo_t));
+        queue.mem = (void *)((char *)shm_ptr + sizeof(BarberClientInfo_t) +
                              sizeof(QueueInfo_t));
         queue.info->capacity = (seats + 1);
         queue.info->element_size = sizeof(BarberClientInfo_t);
         queue.info->elements = queue.info->head = queue.info->tail = 0;
+        queue.info->chairOccupied = false;
     }
 
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -135,53 +121,25 @@ void runBarbershop(int seats) {
            getpid());
 
     while (true) {
-        barber_sleep(sid, semChair);  // Sleep till chair will be occupied
-
-        if (chair->occupied == true) {
-            semaphore_wait(sid, semChairWrite);
-            currentClient = chair->clientInfo;
-            chair->occupied = false;
-            // Handle client on the chair
-            clock_gettime(CLOCK_MONOTONIC, &ts);
-            printf("[%ld.%lds] Getting client from chair\n", ts.tv_sec,
-                   ts.tv_nsec);
-            handle_client(currentClient);
-            semaphore_signal(sid, semChairWrite);
-
-        } else {
-            if (semaphore_getLocks(sid, semChair) < 0) {
-                semaphore_signal(sid, semChair);
-            }
-        }
-
-        // Now check queue.
         clock_gettime(CLOCK_MONOTONIC, &ts);
-        printf("[%ld.%lds] Checking queue\n", ts.tv_sec, ts.tv_nsec);
+        printf("[%ld.%lds] Barber falling asleep.\n", ts.tv_sec, ts.tv_nsec);
 
-        if (semaphore_getLocks(sid, semWaitingRoom) != 0) {
-            semaphore_wait(sid, semWaitingRoom);
-            semaphore_waitForZero(sid, semWaitingRoom);
-        }
+        semaphore_wait(sid, semBarber);
 
-        while (true) {
-            if (queue_isEmpty(&queue) == false) {
-                queue_dequeue(&queue, &currentClient);
-                handle_client(currentClient);
-            } else {
-                clock_gettime(CLOCK_MONOTONIC, &ts);
-                printf("[%ld.%lds] Queue is empty\n", ts.tv_sec, ts.tv_nsec);
-                break;
-            }
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        printf("[%ld.%lds] Barber woke up.\n", ts.tv_sec, ts.tv_nsec);
+
+        semaphore_wait(sid, semWaitingRoom);
+
+        while (queue_dequeue(&queue, &currentClient) == true) {
+            clock_gettime(CLOCK_MONOTONIC, &ts);
+            printf("[%ld.%lds] Getting client\n", ts.tv_sec, ts.tv_nsec);
+
+            handle_client(currentClient);
         }
 
-        chair->occupied = false;
-        if (semaphore_getLocks(sid, semChair) < 0) {
-            semaphore_signal(sid, semChair);
-        }
-        if (semaphore_getLocks(sid, semWaitingRoom) < 0) {
-            semaphore_signal(sid, semWaitingRoom);
-        }
-        // semaphore_signal(sid, semChairWrite);
+        // semaphore_signal(sid, semBarber);
+        semaphore_signal(sid, semWaitingRoom);
     }
 }
 
