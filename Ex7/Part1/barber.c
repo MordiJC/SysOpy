@@ -138,7 +138,6 @@ void runBarbershop(int seats) {
             handle_client(currentClient);
         }
 
-        // semaphore_signal(sid, semBarber);
         semaphore_signal(sid, semWaitingRoom);
     }
 }
