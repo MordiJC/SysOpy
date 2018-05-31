@@ -17,8 +17,12 @@ ASCIIPGM_t* ASCIIPGM_create(size_t width, size_t height) {
     return ret;
 }
 
+char lineBufer[1024] = {0};
+
 ASCIIPGM_t* ASCIIPGM_loadFromFile(const char* path) {
     assert(path != NULL);
+
+    memset(lineBufer, 0, 1024);
 
     int w = 0, h = 0;
     FILE* inFile = fopen(path, "r");
@@ -27,8 +31,32 @@ ASCIIPGM_t* ASCIIPGM_loadFromFile(const char* path) {
         return NULL;
     }
 
-    if (fscanf(inFile, "%*s") < 0 || fscanf(inFile, "%d %d", &w, &h) != 2 ||
-        fscanf(inFile, "%*d") < 0) {
+    do {
+        fscanf(inFile, "%1024[^\n]\n", lineBufer);
+    } while(lineBufer[0] == '#');
+
+    if (sscanf(lineBufer, "P2") < 0) {
+        fprintf(stderr, "wrong!\n");
+        fclose(inFile);
+        return NULL;
+    }
+
+    do {
+        fscanf(inFile, "%1024[^\n]\n", lineBufer);
+    } while(lineBufer[0] == '#');
+
+    if(sscanf(lineBufer, "%d %d", &w, &h) != 2) {
+        fprintf(stderr, "wrong 2!\n%s\n", lineBufer);
+        fclose(inFile);
+        return NULL;
+    }
+
+    do {
+        fscanf(inFile, "%1024[^\n]\n", lineBufer);
+    } while(lineBufer[0] == '#');
+    
+    if(sscanf(lineBufer, "255") < 0) {
+        fprintf(stderr, "wrong 3!\n");
         fclose(inFile);
         return NULL;
     }

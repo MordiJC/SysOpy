@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <stdint.h>
 
 #include "apgm.h"
 #include "filter.h"
@@ -17,6 +18,8 @@ char outputPath[256] = {0};
 ASCIIPGM_t * inputImage = NULL;
 ASCIIPGM_t * outputImage = NULL;
 Filter_t * filter = NULL;
+
+pthread_t * threads = NULL;
 
 int filterPixel(int x, int y) {
     long double res = 0.0L;
@@ -40,13 +43,36 @@ int filterPixel(int x, int y) {
     return round(res < 0 ? 0 : res);
 }
 
-void runMulithreadedFiltering(void) {
-    for(size_t y = 0; y < inputImage->height; ++y) {
+void* processImagePart(void * partIndex) {
+    size_t start = (inputImage->height / threadsNum * (uint64_t)partIndex);
+    size_t end = (inputImage->height / threadsNum * ((uint64_t)partIndex + 1));
+    
+    for(size_t y = start; y < end && y < inputImage->height; ++y) {
         for(size_t x = 0; x < inputImage->width; ++x) {
             *(outputImage->data + outputImage->width * y + x) = 
                 filterPixel(x, y);
         }
     }
+    return NULL;
+}
+
+void runMulithreadedFiltering(void) {
+    for(long int i = 0; i < threadsNum; ++i) {
+        if(pthread_create(&threads[i], NULL, processImagePart, (void*)i)) {
+            fprintf(stderr, "ERROR MAKING THREAD %ld!\n", i);
+        }
+    }
+
+    for(int i = 0; i < threadsNum; ++i) {
+        pthread_join(threads[i], NULL);
+    }
+
+    // for(size_t y = 0; y < inputImage->height; ++y) {
+    //     for(size_t x = 0; x < inputImage->width; ++x) {
+    //         *(outputImage->data + outputImage->width * y + x) = 
+    //             filterPixel(x, y);
+    //     }
+    // }
 }
 
 int main(int argc, char * argv[]) {
@@ -86,6 +112,8 @@ int main(int argc, char * argv[]) {
     }
 
     outputImage = ASCIIPGM_create(inputImage->width, inputImage->height);
+
+    threads = (pthread_t*) calloc(threadsNum, sizeof(pthread_t));
 
     runMulithreadedFiltering();
 
