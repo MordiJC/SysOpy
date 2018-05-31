@@ -46,7 +46,7 @@ int filterPixel(int x, int y) {
 void* processImagePart(void * partIndex) {
     size_t start = (inputImage->height / threadsNum * (uint64_t)partIndex);
     size_t end = (inputImage->height / threadsNum * ((uint64_t)partIndex + 1));
-    
+
     for(size_t y = start; y < end && y < inputImage->height; ++y) {
         for(size_t x = 0; x < inputImage->width; ++x) {
             *(outputImage->data + outputImage->width * y + x) = 
@@ -59,7 +59,7 @@ void* processImagePart(void * partIndex) {
 void runMulithreadedFiltering(void) {
     for(long int i = 0; i < threadsNum; ++i) {
         if(pthread_create(&threads[i], NULL, processImagePart, (void*)i)) {
-            fprintf(stderr, "ERROR MAKING THREAD %ld!\n", i);
+            fprintf(stderr, "ERROR CREATING THREAD %ld!\n", i);
         }
     }
 

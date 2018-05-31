@@ -36,7 +36,6 @@ ASCIIPGM_t* ASCIIPGM_loadFromFile(const char* path) {
     } while(lineBufer[0] == '#');
 
     if (sscanf(lineBufer, "P2") < 0) {
-        fprintf(stderr, "wrong!\n");
         fclose(inFile);
         return NULL;
     }
@@ -46,7 +45,6 @@ ASCIIPGM_t* ASCIIPGM_loadFromFile(const char* path) {
     } while(lineBufer[0] == '#');
 
     if(sscanf(lineBufer, "%d %d", &w, &h) != 2) {
-        fprintf(stderr, "wrong 2!\n%s\n", lineBufer);
         fclose(inFile);
         return NULL;
     }
@@ -56,7 +54,6 @@ ASCIIPGM_t* ASCIIPGM_loadFromFile(const char* path) {
     } while(lineBufer[0] == '#');
     
     if(sscanf(lineBufer, "255") < 0) {
-        fprintf(stderr, "wrong 3!\n");
         fclose(inFile);
         return NULL;
     }
