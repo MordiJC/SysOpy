@@ -1,0 +1,8 @@
+Producers: 15
+Consumers: 10
+BufferSize: 20
+File: PanTadeusz.txt
+LineLen: 50
+SearchMode: >
+Verbose: 1
+NK: 0
