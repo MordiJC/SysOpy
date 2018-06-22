@@ -47,24 +47,9 @@ size_t inList(void *const listStart, size_t listElements, size_t elementSize, vo
 
 int cmp_name(char *name, client_t *client) { return strcmp(name, client->name); }
 
-void remove_socket(int socket) {
-    if (epoll_ctl(epoll, EPOLL_CTL_DEL, socket, NULL) == -1) {
-        die(3, "Failed to remove client's socket from epoll.");
-    }
-
-    if (shutdown(socket, SHUT_RDWR) == -1) {
-        die(3, "Failed to shutdown client's socket.");
-    }
-
-    if (close(socket) == -1) {
-        die(3, "Failed to close client's socket.");
-    }
-}
-
 void remove_client(size_t i) {
-    remove_socket(clients[i].fd);
-
     free(clients[i].name);
+    free(clients[i].sockaddr);
 
     --clientsNum;
     for (size_t j = i; j < clientsNum; ++j) {
@@ -72,57 +57,60 @@ void remove_client(size_t i) {
     }
 }
 
-void unregister_client(char *client_name) {
+void unregister_client(message_t msg) {
     pthread_mutex_lock(&clientsMutex);
-    int index = inList((void *const)clients, (size_t)clientsNum, sizeof(client_t), (void *const)client_name,
+    int index = inList((void *const)clients, (size_t)clientsNum, sizeof(client_t), (void *const)msg.name,
                        (__compar_fn_t)cmp_name);
     if (index >= 0) {
         remove_client(index);
-        printf("[INFO] Client \"%s\" unregistered.\n", client_name);
+        printf("[INFO] Client \"%s\" unregistered.\n", msg.name);
     }
     pthread_mutex_unlock(&clientsMutex);
 }
 
-void register_client(char *client_name, int socket) {
+void register_client(int socket, message_t msg, struct sockaddr * sockaddr_struct, socklen_t socklen) {
     uint8_t message_type = NONE;
     pthread_mutex_lock(&clientsMutex);
 
     if (clientsNum == CLIENTS_MAX) {
         message_type = ERR_TOO_MANY_CLIENTS;
-        if (write(socket, &message_type, 1) != 1) {
-            char msg[1024] = {0};
-            sprintf(msg, "Failed to write ERR_TOO_MANY_CLIENTS message to client \"%s\"\n", client_name);
-            die(3, msg);
+        if (sendto(socket, &message_type, sizeof(message_type), 0, sockaddr_struct, socklen) != 1) {
+            char errormsg[1024] = {0};
+            sprintf(errormsg, "Failed to write ERR_TOO_MANY_CLIENTS message to client \"%s\"\n", msg.name);
+            die(3, errormsg);
         }
-        remove_socket(socket);
+        free(sockaddr_struct);
     } else {
-        int index = inList((void *const)clients, (size_t)clientsNum, sizeof(client_t), (void *const)client_name,
+        int index = inList((void *const)clients, (size_t)clientsNum, sizeof(client_t), (void *const)msg.name,
                            (__compar_fn_t)cmp_name);
 
         if (index != -1) {
             message_type = ERR_NAME_ALREADY_REGISTERED;
-            if (write(socket, &message_type, 1) != 1) {
-                char msg[1024] = {0};
-                sprintf(msg,
-                        "Failed to write ERR_NAME_ALREADY_REGISTERED message to "
-                        "client \"%s\"\n",
-                        client_name);
-                die(3, msg);
+            if (sendto(socket, &message_type, sizeof(message_type), 0, sockaddr_struct, socklen) != sizeof(message_type)) {
+                char errormsg[1024] = {0};
+                sprintf(errormsg, "Failed to write ERR_NAME_ALREADY_REGISTERED message to client \"%s\"\n", msg.name);
+                die(3, errormsg);
             }
-            remove_socket(socket);
+            free(sockaddr_struct);
         } else {
-            clients[clientsNum].fd = socket;
-            clients[clientsNum].name = malloc(strlen(client_name) + 1);
+            clients[clientsNum].sockaddr = sockaddr_struct;
+            clients[clientsNum].socklen = socklen;
+            clients[clientsNum].connection_type = msg.connect_type;
+
+            clients[clientsNum].name = malloc(strlen(msg.name) + 1);
+            strcpy(clients[clientsNum].name, msg.name);
+
             clients[clientsNum].inactiveTicks = 0;
-            strcpy(clients[clientsNum].name, client_name);
 
             ++clientsNum;
 
             message_type = SUCCESS;
-            if (write(socket, &message_type, 1) != 1) {
-                char msg[1024] = {0};
-                sprintf(msg, "Failed to write SUCCESS message to client `%s`.", client_name);
-                die(3, msg);
+
+            if (sendto(socket, &message_type, sizeof(message_type), 0, sockaddr_struct, socklen) != sizeof(message_type)) {
+                perror("SOCKERROR");
+                char errormsg[1024] = {0};
+                sprintf(errormsg, "Failed to write SUCCESS message to client \"%s\"\n", msg.name);
+                die(3, errormsg);
             }
         }
     }
@@ -143,7 +131,8 @@ void *pingThreadRunner(void *arg) {
                 remove_client(i);
                 --i;  // Client "poped"
             } else {
-                if (write(clients[i].fd, &message_type, 1) != 1) {
+                int sock = clients[i].connection_type == LOCAL ? unixSocket : webSocket;
+                if(sendto(sock, &message_type, sizeof(message_type), 0, clients[i].sockaddr, clients[i].socklen) != 1) {
                     char msg[1024] = {0};
                     sprintf(msg, "Failed to PING client `%s`.", clients[i].name);
                     die(3, msg);
@@ -162,7 +151,7 @@ void *commandThreadRunner(void *arg) {
     (void) arg;
     srand((unsigned int)time(NULL));
 
-    operation_t msg;
+    operation_t operation;
     uint8_t message_type = REQUEST;
 
     bool error = false;
@@ -172,16 +161,16 @@ void *commandThreadRunner(void *arg) {
         printf("Enter command: \n> ");
         fgets(buffer, 256, stdin);
 
-        if (sscanf(buffer, "%lf %c %lf", &msg.arg1, &msg.op, &msg.arg2) != 3) {
+        if (sscanf(buffer, "%lf %c %lf", &operation.arg1, &operation.op, &operation.arg2) != 3) {
             printf("[ERROR] Wrong command format\n");
             continue;
         }
-        if (msg.op != '+' && msg.op != '-' && msg.op != '*' && msg.op != '/') {
-            printf("[ERROR] Wrong operator (%c)\n", msg.op);
+        if (operation.op != '+' && operation.op != '-' && operation.op != '*' && operation.op != '/') {
+            printf("[ERROR] Wrong operator (%c)\n", operation.op);
             continue;
         }
 
-        msg.op_num = op_num;
+        operation.op_num = op_num;
         ++op_num;
         pthread_mutex_lock(&clientsMutex);
         if (clientsNum == 0) {
@@ -192,17 +181,20 @@ void *commandThreadRunner(void *arg) {
         error = false;
         int i = rand() % clientsNum;
 
-        if (write(clients[i].fd, &message_type, 1) != 1) {
+        int sock = clients[i].connection_type == LOCAL ? unixSocket : webSocket;
+
+        if(sendto(sock, &message_type, sizeof(message_type), 0, clients[i].sockaddr, clients[i].socklen) != sizeof(message_type)) {
             error = true;
         }
-        if (write(clients[i].fd, &msg, sizeof(operation_t)) != sizeof(operation_t)) {
+        if(sendto(sock, &operation, sizeof(operation), 0, clients[i].sockaddr, clients[i].socklen) != sizeof(operation)) {
             error = true;
         }
+
         if (error == false) {
             printf(
                 "[INFO] Command %d: %lf %c %lf has been sent to client "
                 "\"%s\"\n",
-                msg.op_num, msg.arg1, msg.op, msg.arg2, clients[i].name);
+                operation.op_num, operation.arg1, operation.op, operation.arg2, clients[i].name);
         } else {
             printf("Failed to send request to client \"%s\"\n", clients[i].name);
         }
@@ -212,77 +204,43 @@ void *commandThreadRunner(void *arg) {
     return (void *)0;
 }
 
-void handle_connection(int socket) {
-    int client = accept(socket, NULL, NULL);
-    if (client == -1) {
-        die(3, "Failed to accept new client.");
-    }
-
-    struct epoll_event event;
-    event.events = EPOLLIN | EPOLLPRI;
-    event.data.fd = client;
-
-    if (epoll_ctl(epoll, EPOLL_CTL_ADD, client, &event) == -1) {
-        die(3, "Failed to add new client to epoll.");
-    }
-}
-
 void handle_message(int socket) {
-    uint8_t message_type;
-    uint16_t message_size;
+    struct sockaddr* sockaddr = (struct sockaddr*)malloc(sizeof(struct sockaddr));
+    socklen_t socklen = sizeof(struct sockaddr);
+    message_t msg;
 
-    if (read(socket, &message_type, 1) != 1) {
-        die(3, "Failed to read message type\n");
+    if (recvfrom(socket, &msg, sizeof(msg), 0, sockaddr, &socklen) != sizeof(msg)) {
+        die(3, "Failed to receive message\n");
     }
-    if (read(socket, &message_size, 2) != 2) {
-        die(3, "Failed to read message size\n");
-    }
-    char *client_name = malloc(message_size);
 
-    switch (message_type) {
-        case REGISTER: {
-            if (read(socket, client_name, message_size) != message_size) {
-                die(3, "Failed to read register message name.");
+    if(msg.message_type == REGISTER) {
+        register_client(socket, msg, sockaddr, socklen);
+    } else {
+        free(sockaddr);
+        switch (msg.message_type) {
+            case UNREGISTER: {
+                unregister_client(msg);
+                break;
             }
-            register_client(client_name, socket);
-            break;
+            case RESULT: {
+                printf("Client \"%s\" calculated operation [%d]. Result: %lf\n", msg.name, msg.op_num, msg.value);
+                break;
+            }
+            case PONG: {
+                pthread_mutex_lock(&clientsMutex);
+                int index = inList((void *const)clients, (size_t)clientsNum, sizeof(client_t), (void *const)msg.name,
+                                (__compar_fn_t)cmp_name);
+                if (index >= 0) {
+                    clients[index].inactiveTicks--;
+                }
+                pthread_mutex_unlock(&clientsMutex);
+                break;
+            }
+            default:
+                printf("Unknown message type\n");
+                break;
         }
-        case UNREGISTER: {
-            if (read(socket, client_name, message_size) != message_size) {
-                die(3, "Failed to read unregister message name.");
-            }
-            unregister_client(client_name);
-            break;
-        }
-        case RESULT: {
-            result_t result;
-            if (read(socket, client_name, message_size) != message_size) {
-                die(3, "Failed to read result message name\n");
-            }
-            if (read(socket, &result, sizeof(result_t)) != sizeof(result_t)) {
-                die(3, "Failed to read result message\n");
-            }
-            printf("Client \"%s\" calculated operation [%d]. Result: %lf\n", client_name, result.op_num, result.value);
-            break;
-        }
-        case PONG: {
-            if (read(socket, client_name, message_size) != message_size) {
-                die(3, "Failed to read PONG message.");
-            }
-            pthread_mutex_lock(&clientsMutex);
-            int index = inList((void *const)clients, (size_t)clientsNum, sizeof(client_t), (void *const)client_name,
-                               (__compar_fn_t)cmp_name);
-            if (index >= 0) {
-                clients[index].inactiveTicks--;
-            }
-            pthread_mutex_unlock(&clientsMutex);
-            break;
-        }
-        default:
-            printf("Unknown message type\n");
-            break;
     }
-    free(client_name);
 }
 
 void setup(void) {
@@ -305,16 +263,12 @@ void setup(void) {
     webSocketAddress.sin_addr.s_addr = htonl(INADDR_ANY);
     webSocketAddress.sin_port = htons(port);
 
-    if ((webSocket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((webSocket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         die(3, "Failed to create web socket.");
     }
 
     if (bind(webSocket, (const struct sockaddr *)&webSocketAddress, sizeof(webSocketAddress))) {
         die(3, "Failed to bind web socket.");
-    }
-
-    if (listen(webSocket, 64) == -1) {
-        die(3, "Failed to listen to web socket.");
     }
 
     // ### UNIX SOCKET ###
@@ -323,16 +277,12 @@ void setup(void) {
 
     snprintf(localAddress.sun_path, UNIX_PATH_MAX, "%s", unixSocketPath);
 
-    if ((unixSocket = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
+    if ((unixSocket = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
         die(3, "Failed to create local socket.");
     }
 
     if (bind(unixSocket, (const struct sockaddr *)&localAddress, sizeof(localAddress))) {
         die(3, "Failed to bind local socket.");
-    }
-
-    if (listen(unixSocket, 64) == -1) {
-        die(3, "Failed to listen to local socket.");
     }
 
     // ### EPOLL ###
@@ -365,8 +315,12 @@ void setup(void) {
 }
 
 void cleanup(void) {
-    pthread_cancel(pingThread);
-    pthread_cancel(commandThread);
+    if(pingThread != 0) {
+        pthread_cancel(pingThread);
+    }
+    if(commandThread != 0) {
+        pthread_cancel(commandThread);
+    }
     if (close(webSocket) == -1) {
         fprintf(stderr, "Error: Failed to close web socket.\n");
     }
@@ -391,11 +345,7 @@ void run(void) {
             die(3, "epoll_wait has failed.");
         }
 
-        if (event.data.fd == webSocket || event.data.fd == unixSocket) {
-            handle_connection(event.data.fd);
-        } else {
-            handle_message(event.data.fd);
-        }
+        handle_message(event.data.fd);
     }
 }
 
